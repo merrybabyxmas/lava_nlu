@@ -1,0 +1,59 @@
+# --- 기존 항목 ---
+.DS_Store
+output*
+outputs*
+meta-llama
+pissa-dataset
+
+wandb/
+checkpoints/
+data/
+*.bin
+*.pt
+*.pth
+.cache/
+
+# --- 추가 권장 항목 ---
+
+# Python 관련 (바이트코드 및 빌드 파일)
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# 가상환경 (Conda/Venv)
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# 로그 및 임시 파일
+*.log
+tmp/
+
+# VS Code 관련 설정 (개인 설정 및 로컬 환경 정보)
+.vscode/
+.history/
+
+# OS 관련 (Windows/macOS)
+Thumbs.db
+desktop.ini

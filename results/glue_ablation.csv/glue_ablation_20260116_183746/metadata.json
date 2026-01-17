@@ -1,0 +1,46 @@
+{
+  "experiment_name": "glue_ablation",
+  "timestamp": "20260116_183746",
+  "seeds": [
+    19
+  ],
+  "gpus": "0,1,2,3",
+  "test_mode": false,
+  "tasks": [
+    "rte",
+    "mrpc",
+    "cola",
+    "stsb",
+    "sst2",
+    "qnli",
+    "qqp",
+    "mnli"
+  ],
+  "training_config": {
+    "learning_rate": 0.0005,
+    "batch_size": 32,
+    "epochs": 30,
+    "weight_decay": 0.01,
+    "warmup_ratio": 0.1,
+    "lr_scheduler": "linear",
+    "max_grad_norm": 1.0
+  },
+  "lora_config": {
+    "r": 16,
+    "alpha": 16,
+    "dropout": 0.1
+  },
+  "lava_config": {
+    "lambda_vib": 1.0,
+    "lambda_stab": 0.1,
+    "lambda_latent_stability": 1.0,
+    "latent_dim": 16,
+    "noise_scale": 1.0,
+    "kl_annealing": false
+  },
+  "ablation_params": [
+    "vib",
+    "logit_stab",
+    "latent_stab"
+  ]
+}
