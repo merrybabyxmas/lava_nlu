@@ -36,7 +36,7 @@ import peft.utils.save_and_load
 import peft.mapping
 from peft.utils.peft_types import PeftType
 from peft.tuners.lava.model import LavaModel
-
+from trainer import LavaViTTrainer
 # LAVA 등록
 if not hasattr(PeftType, "LAVA"):
     PeftType.LAVA = "LAVA"
@@ -446,24 +446,25 @@ def main(args):
         disable_tqdm=False,
         log_level="info",
         label_names=["labels"],  # compute_metrics 호출을 위해 명시적으로 설정
-        dataloader_num_workers=0,  # 메모리 사용 줄이기 (multiprocessing 비활성화)
+        dataloader_num_workers=4,  # 메모리 사용 줄이기 (multiprocessing 비활성화)
         dataloader_pin_memory=False,  # RAM 메모리 사용 줄이기
     )
 
     callback = BestMetricCallback()
 
     if adapter_type == "lava":
-        trainer = StabilityViTTrainer(
-            model=model,
-            args=training_args,
-            train_dataset=train_ds,
-            eval_dataset=val_ds,
-            compute_metrics=compute_metrics,
-            lambda_vib=args.lambda_vib,
-            lambda_stab=args.lambda_stab,
-            lambda_latent_stability=args.lambda_latent_stability,
-            callbacks=[callback],
-        )
+        trainer = LavaViTTrainer(
+        model=model,
+        args=training_args,
+        train_dataset=train_ds,
+        eval_dataset=val_ds,
+        tokenizer=image_processor,
+        compute_metrics=compute_metrics,
+        data_collator=collate_fn,
+        lambda_vib=args.lambda_vib,
+        lambda_stab=args.lambda_stab,
+        lambda_latent_stability=args.lambda_latent_stab  
+    )
     else:
         trainer = Trainer(
             model=model,

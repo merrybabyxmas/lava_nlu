@@ -38,6 +38,8 @@ import peft.mapping
 from peft.utils.peft_types import PeftType
 from peft.tuners.lava.config import LavaConfig
 from peft.tuners.lava.model import LavaModel
+
+from trainer import LavaNLUTrainer  
 # ----------------------------------------------------------
 # SEED SETUP (UNCHANGED)
 # ----------------------------------------------------------
@@ -102,112 +104,6 @@ class BestMetricCallback(TrainerCallback):
 # MaxEnt LAVA Trainer (🔥 CLEAN: FIXED LAMBDA, NO CONSTRAINT)
 # ==========================================================
 
-class StabilityLavaTrainer(Trainer):
-    def __init__(self, *args, lambda_vib=0.1, lambda_latent_stability=0.1,lambda_stab=0.0, **kwargs):
-            super().__init__(*args, **kwargs)
-            self.lambda_vib = lambda_vib
-            self.lambda_latent_stability = lambda_latent_stability
-            self.lambda_stab = lambda_stab
-            
-            # Logit Consistency 관련 키 제거
-            self.loss_track = {
-                "ce_loss": 0,
-                "raw_vib_loss": 0,
-                "weighted_vib_loss": 0,
-                "raw_latent_stab_loss": 0,
-                "weighted_latent_stab_loss": 0
-            }
-
-    def compute_loss(self, model, inputs, return_outputs=False):
-        # 1. 평가(Evaluation) 모드일 때는 기본 Trainer의 loss 계산 방식을 따름
-        if not model.training:
-            return super().compute_loss(model, inputs, return_outputs)
-
-        # 2. 데이터 준비 (전체 배치 N을 복제하여 2N 생성)
-        labels = inputs["labels"]
-        # 모든 텐서 입력을 배치 차원(dim=0)으로 두 번 이어 붙임
-        concat_inputs = {k: torch.cat([v, v], dim=0) for k, v in inputs.items() if isinstance(v, torch.Tensor)}
-        
-        # 3. Forward Pass (2N 배치 처리)
-        outputs = model(**concat_inputs)
-        logits = outputs.logits 
-        
-        # 4. 결과 분할 (원본 몫과 복제본 몫)
-        # logits1: 원본 데이터 N개에 대한 결과
-        # logits2: 복제된 데이터 N개에 대한 결과 (LAVA 노이즈로 인해 미세하게 다름)
-        logits1, logits2 = logits.chunk(2, dim=0)
-        
-        # 5. Task Loss 계산 (2N 전체에 대해 수행)
-        # 라벨도 2N으로 불려서 전체 출력에 대해 정답을 맞히도록 유도
-        full_labels = torch.cat([labels, labels], dim=0)
-        if labels.dtype in [torch.float32, torch.float64]:
-            loss_fct = torch.nn.MSELoss()
-            ce_loss = loss_fct(logits.view(-1), full_labels.view(-1))
-        else:
-            ce_loss = F.cross_entropy(logits.view(-1, logits.size(-1)), full_labels.view(-1))
-
-        # 6. Stability Loss (Logit Consistency)
-        # 동일한 입력에 대해 두 출력이 최대한 같아지도록 제약 (핵심 정규화)
-        if labels.dtype in [torch.float32, torch.float64]:
-            const_loss = F.mse_loss(logits1, logits2)
-        else:
-            p = F.log_softmax(logits1, dim=-1)
-            q = F.softmax(logits2, dim=-1)
-            p_rev = F.log_softmax(logits2, dim=-1)
-            q_rev = F.softmax(logits1, dim=-1)
-            # 양방향 KL Divergence의 평균 사용
-            const_loss = (F.kl_div(p, q, reduction='batchmean') + 
-                        F.kl_div(p_rev, q_rev, reduction='batchmean')) / 2
-
-        # 7. LAVA 고유 Loss 수집 (VIB & Latent Stability)
-        kl_divs = []
-        latent_stabs = []
-        for m in model.modules():
-            # VIB Loss: 잠재 공간의 분포를 표준 정규분포에 가깝게 (정보 압축)
-            if hasattr(m, "_last_mu") and m._last_mu is not None:
-                # 2N 데이터 중 앞부분(N개)의 통계치만 사용하여 KL 계산 (효율성)
-                mu, logvar = m._last_mu.chunk(2)[0], m._last_logvar.chunk(2)[0]
-                kl = -0.5 * torch.mean(1 + logvar - mu.pow(2) - logvar.exp(), dim=-1).mean()
-                kl_divs.append(kl)
-                # 메모리 누수 방지를 위해 초기화
-                m._last_mu, m._last_logvar = None, None
-
-            # Latent Stability: 내부 레이어 표현의 일관성
-            if hasattr(m, "_latent_stability") and m._latent_stability is not None:
-                latent_stabs.append(m._latent_stability)
-                m._latent_stability = None
-
-        vib_loss = torch.stack(kl_divs).mean() if kl_divs else torch.tensor(0.0).to(ce_loss.device)
-        latent_stab_loss = torch.stack(latent_stabs).mean() if latent_stabs else torch.tensor(0.0).to(ce_loss.device)
-
-        # 8. 가중 합산 및 최종 Loss 산출
-        w_const = self.lambda_stab * const_loss
-        w_vib = self.lambda_vib * vib_loss
-        w_latent = self.lambda_latent_stability * latent_stab_loss
-
-        loss = ce_loss + w_const + w_vib + w_latent
-        
-        # 9. 실시간 로깅을 위한 값 업데이트
-        self.loss_track.update({
-            "ce_loss": ce_loss.item(),
-            "raw_const_loss": const_loss.item(),
-            "weighted_const_loss": w_const.item(),
-            "raw_vib_loss": vib_loss.item(),
-            "weighted_vib_loss": w_vib.item(),
-            "raw_latent_stab_loss": latent_stab_loss.item(),
-            "weighted_latent_stab_loss": w_latent.item()
-        })
-
-        return (loss, outputs) if return_outputs else loss
-    
-    def log(self, logs: Dict[str, float]) -> None:
-        logs["train/ce_loss"] = self.loss_track["ce_loss"]
-        logs["train/vib_raw"] = self.loss_track["raw_vib_loss"]
-        logs["train/vib_weighted"] = self.loss_track["weighted_vib_loss"]
-        logs["train/latent_stab_raw"] = self.loss_track["raw_latent_stab_loss"]
-        logs["train/latent_stab_weighted"] = self.loss_track["weighted_latent_stab_loss"]
-        
-        super().log(logs)
 # ==========================================================
 # Adapter builder (MODIFIED: Added AdaLoRA, BitFit)
 # ==========================================================
@@ -441,18 +337,18 @@ def main(args):
     )
 
     if at in ["lava", "lava_init"]:
-        trainer = StabilityLavaTrainer(
-            model=model,
-            args=args_out,
-            train_dataset=encoded["train"],
-            eval_dataset=encoded[eval_key],
-            tokenizer=tokenizer,
-            compute_metrics=compute_metrics,
-            lambda_vib=args.lambda_vib,
-            lambda_stab=args.lambda_stab,
-            lambda_latent_stability=args.lambda_latent_stability,
-            callbacks=[best_callback],
-        )
+        trainer = LavaNLUTrainer(
+        model=model,
+        args=args_out,
+        train_dataset=train_dataset,
+        eval_dataset=eval_dataset,
+        compute_metrics=compute_metrics,
+        tokenizer=tokenizer,
+        data_collator=data_collator,
+        lambda_vib=args.lambda_vib,              
+        lambda_stab=args.lambda_stab,            
+        lambda_latent_stability=args.lambda_latent_stab  
+    )
     else:
         trainer = Trainer(
             model=model,
