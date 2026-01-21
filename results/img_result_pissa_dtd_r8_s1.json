@@ -1,0 +1,9 @@
+{
+  "task": "dtd",
+  "seed": 1,
+  "adapter": "pissa",
+  "best_accuracy": 0.6606382978723404,
+  "lambda_vib": 1.0,
+  "lambda_stab": 0.1,
+  "lambda_latent_stability": 1.0
+}

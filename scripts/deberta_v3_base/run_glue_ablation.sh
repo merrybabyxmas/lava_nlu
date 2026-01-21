@@ -1,6 +1,7 @@
 #!/bin/bash
 export NCCL_P2P_DISABLE=1
 export NCCL_IB_DISABLE=1
+export PYTHONUNBUFFERED=1
 
 # ============================================================
 # GLUE Ablation: LAVA Hyperparameter Sensitivity (병렬 GPU 실행)
@@ -33,6 +34,11 @@ EPOCHS=30
 R=16
 ALPHA=16
 
+# LAVA Lambda Parameters (기본값 - ablation에서는 param별로 그리드 탐색)
+LAMBDA_VIB=1.0
+LAMBDA_STAB=0.1
+LAMBDA_LATENT_STAB=1.0
+
 # Wandb 설정
 WANDB_PROJECT="GLUE-Ablation"
 
@@ -48,7 +54,7 @@ echo "============================================================"
 
 if [ "$TEST_MODE" = true ]; then
     echo "[테스트 모드]"
-    python experiments/glue_ablation.py \
+    python -u experiments/glue_ablation.py \
         --gpus "$GPUS" \
         --per_gpu_tasks $PER_GPU_TASKS \
         --seeds "$SEEDS" \
@@ -59,11 +65,14 @@ if [ "$TEST_MODE" = true ]; then
         --epochs $EPOCHS \
         --r $R \
         --alpha $ALPHA \
+        --lambda_vib $LAMBDA_VIB \
+        --lambda_stab $LAMBDA_STAB \
+        --lambda_latent_stab $LAMBDA_LATENT_STAB \
         --wandb_project "$WANDB_PROJECT" \
         --test
 else
     echo "[실험 모드]"
-    python experiments/glue_ablation.py \
+    python -u experiments/glue_ablation.py \
         --gpus "$GPUS" \
         --per_gpu_tasks $PER_GPU_TASKS \
         --seeds "$SEEDS" \
@@ -74,6 +83,9 @@ else
         --epochs $EPOCHS \
         --r $R \
         --alpha $ALPHA \
+        --lambda_vib $LAMBDA_VIB \
+        --lambda_stab $LAMBDA_STAB \
+        --lambda_latent_stab $LAMBDA_LATENT_STAB \
         --wandb_project "$WANDB_PROJECT"
 fi
 

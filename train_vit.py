@@ -4,7 +4,6 @@ ViT Image Classification Training
 ==================================
 ViT-B/16을 사용한 이미지 분류 학습 (DTD, EuroSAT, GTSRB, RESISC45, SUN397, SVHN)
 """
-
 import argparse
 import torch
 import random
@@ -32,28 +31,11 @@ import wandb
 
 from peft import get_peft_model, LoraConfig, AdaLoraConfig
 from peft.tuners.lava.config import LavaConfig
-import peft.utils.save_and_load
-import peft.mapping
-from peft.utils.peft_types import PeftType
-from peft.tuners.lava.model import LavaModel
-from trainer import LavaViTTrainer
+
+from trainer import LavaViTTrainer, setup_seed, register_lava, BestMetricCallback
+
 # LAVA 등록
-if not hasattr(PeftType, "LAVA"):
-    PeftType.LAVA = "LAVA"
-for lava_key in ["LAVA", PeftType.LAVA]:
-    peft.mapping.PEFT_TYPE_TO_CONFIG_MAPPING[lava_key] = LavaConfig
-    peft.mapping.PEFT_TYPE_TO_TUNER_MAPPING[lava_key] = LavaModel
-    peft.utils.save_and_load.PEFT_TYPE_TO_PREFIX_MAPPING[lava_key] = "adapter_model"
-    peft.mapping.PEFT_TYPE_TO_PREFIX_MAPPING[lava_key] = "adapter_model"
-
-
-def setup_seed(seed):
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
+register_lava()
 
 
 # ============================================================
@@ -167,93 +149,6 @@ def load_torchvision_dataset(task: str, meta: dict, data_root: str = "./data"):
     val_hf = convert_to_hf_dataset(val_ds)
 
     return {"train": train_hf, "test": val_hf}
-
-
-class BestMetricCallback(TrainerCallback):
-    def __init__(self):
-        self.best_accuracy = 0.0
-
-    def on_evaluate(self, args, state, control, metrics=None, **kwargs):
-        epoch = int(state.epoch) if state.epoch else 0
-        if metrics:
-            # eval_accuracy 또는 accuracy 키 확인
-            current = metrics.get("eval_accuracy", metrics.get("accuracy"))
-            if current is not None:
-                is_best = current > self.best_accuracy
-                if is_best:
-                    self.best_accuracy = current
-                print(f"[EVAL] Epoch {epoch}: Accuracy = {current:.4f} | Best = {self.best_accuracy:.4f}" + (" *" if is_best else ""))
-                wandb.log({"eval/best_accuracy": self.best_accuracy}, step=state.global_step)
-            else:
-                # accuracy가 없으면 loss만 출력
-                loss = metrics.get("eval_loss", 0)
-                print(f"[EVAL] Epoch {epoch}: Loss = {loss:.4f}")
-
-    def on_train_begin(self, args, state, control, **kwargs):
-        print("[TRAIN] Training started...")
-
-    def on_epoch_begin(self, args, state, control, **kwargs):
-        epoch = int(state.epoch) if state.epoch else 0
-        print(f"[TRAIN] Epoch {epoch + 1}/{int(args.num_train_epochs)} starting...")
-
-    def on_train_end(self, args, state, control, **kwargs):
-        print(f"[TRAIN] Training completed. Best accuracy: {self.best_accuracy:.4f}")
-
-
-# ============================================================
-# LAVA Trainer (Stability Loss 포함)
-# ============================================================
-class StabilityViTTrainer(Trainer):
-    def __init__(self, *args, lambda_vib=0.1, lambda_latent_stability=0.1, lambda_stab=0.0, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.lambda_vib = lambda_vib
-        self.lambda_latent_stability = lambda_latent_stability
-        self.lambda_stab = lambda_stab
-
-    def compute_loss(self, model, inputs, return_outputs=False):
-        import torch.nn.functional as F
-
-        if not model.training:
-            return super().compute_loss(model, inputs, return_outputs)
-
-        labels = inputs["labels"]
-        # ViT는 pixel_values와 labels만 필요 (input_ids 등 텍스트 관련 키 제외)
-        vit_keys = {"pixel_values", "labels"}
-        concat_inputs = {k: torch.cat([v, v], dim=0) for k, v in inputs.items()
-                        if isinstance(v, torch.Tensor) and k in vit_keys}
-
-        outputs = model(**concat_inputs)
-        logits = outputs.logits
-
-        logits1, logits2 = logits.chunk(2, dim=0)
-        full_labels = torch.cat([labels, labels], dim=0)
-
-        ce_loss = F.cross_entropy(logits.view(-1, logits.size(-1)), full_labels.view(-1))
-
-        p = F.log_softmax(logits1, dim=-1)
-        q = F.softmax(logits2, dim=-1)
-        p_rev = F.log_softmax(logits2, dim=-1)
-        q_rev = F.softmax(logits1, dim=-1)
-        const_loss = (F.kl_div(p, q, reduction='batchmean') +
-                      F.kl_div(p_rev, q_rev, reduction='batchmean')) / 2
-
-        kl_divs, latent_stabs = [], []
-        for m in model.modules():
-            if hasattr(m, "_last_mu") and m._last_mu is not None:
-                mu, logvar = m._last_mu.chunk(2)[0], m._last_logvar.chunk(2)[0]
-                kl = -0.5 * torch.mean(1 + logvar - mu.pow(2) - logvar.exp(), dim=-1).mean()
-                kl_divs.append(kl)
-                m._last_mu, m._last_logvar = None, None
-            if hasattr(m, "_latent_stability") and m._latent_stability is not None:
-                latent_stabs.append(m._latent_stability)
-                m._latent_stability = None
-
-        vib_loss = torch.stack(kl_divs).mean() if kl_divs else torch.tensor(0.0).to(ce_loss.device)
-        latent_stab_loss = torch.stack(latent_stabs).mean() if latent_stabs else torch.tensor(0.0).to(ce_loss.device)
-
-        loss = ce_loss + self.lambda_stab * const_loss + self.lambda_vib * vib_loss + self.lambda_latent_stability * latent_stab_loss
-
-        return (loss, outputs) if return_outputs else loss
 
 
 def build_adapter(adapter_type, r=8, alpha=8, total_step=None):
@@ -450,21 +345,20 @@ def main(args):
         dataloader_pin_memory=False,  # RAM 메모리 사용 줄이기
     )
 
-    callback = BestMetricCallback()
+    callback = BestMetricCallback("accuracy")
 
     if adapter_type == "lava":
         trainer = LavaViTTrainer(
-        model=model,
-        args=training_args,
-        train_dataset=train_ds,
-        eval_dataset=val_ds,
-        tokenizer=image_processor,
-        compute_metrics=compute_metrics,
-        data_collator=collate_fn,
-        lambda_vib=args.lambda_vib,
-        lambda_stab=args.lambda_stab,
-        lambda_latent_stability=args.lambda_latent_stab  
-    )
+            model=model,
+            args=training_args,
+            train_dataset=train_ds,
+            eval_dataset=val_ds,
+            compute_metrics=compute_metrics,
+            callbacks=[callback],
+            lambda_vib=args.lambda_vib,
+            lambda_stab=args.lambda_stab,
+            lambda_latent_stability=args.lambda_latent_stability,
+        )
     else:
         trainer = Trainer(
             model=model,

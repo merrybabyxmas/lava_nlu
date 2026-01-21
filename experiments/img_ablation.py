@@ -229,6 +229,11 @@ def main():
     parser.add_argument("--r", type=int, default=16)
     parser.add_argument("--alpha", type=int, default=16)
 
+    # LAVA Lambda Config (기본값 - ablation에서는 그리드로 override됨)
+    parser.add_argument("--lambda_vib", type=float, default=1.0)
+    parser.add_argument("--lambda_stab", type=float, default=0.1)
+    parser.add_argument("--lambda_latent_stab", type=float, default=1.0)
+
     args = parser.parse_args()
 
     seeds = [int(s) for s in args.seeds.split(",")]

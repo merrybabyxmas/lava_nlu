@@ -6,17 +6,14 @@ from transformers import (
     AutoModelForSequenceClassification,
     TrainingArguments,
     Trainer,
-    TrainerCallback
 )
 import math
-import random
-import numpy as np
 from evaluate import load as load_metric
 import wandb
 import os
 import json
 import tempfile
-from peft import get_peft_model, LoraConfig, AdaLoraConfig 
+from peft import get_peft_model, LoraConfig, AdaLoraConfig
 from peft.tuners.lava.config import LavaConfig
 
 from configs.task_config import (
@@ -30,75 +27,16 @@ from configs.task_config import (
     ADALORA_TASK_CONFIG,
 )
 
-import torch.nn.functional as F
+from trainer import (
+    LavaNLUTrainer,
+    setup_seed,
+    register_lava,
+    BestMetricCallback,
+    print_trainable_parameters,
+)
 
-from typing import Dict
-import peft.utils.save_and_load
-import peft.mapping
-from peft.utils.peft_types import PeftType
-from peft.tuners.lava.config import LavaConfig
-from peft.tuners.lava.model import LavaModel
-
-from trainer import LavaNLUTrainer  
-# ----------------------------------------------------------
-# SEED SETUP (UNCHANGED)
-# ----------------------------------------------------------
-def setup_seed(seed):
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
-
-
-
-# 1. PeftType 에 LAVA 열거형 추가
-if not hasattr(PeftType, "LAVA"):
-    PeftType.LAVA = "LAVA"
-
-# 2. PEFT 내부 매핑 테이블에 LAVA 등록
-# 이 과정이 없으면 get_peft_model이 'LAVA' 키를 찾지 못해 KeyError가 발생합니다.
-for lava_key in ["LAVA", PeftType.LAVA]:
-    peft.mapping.PEFT_TYPE_TO_CONFIG_MAPPING[lava_key] = LavaConfig
-    peft.mapping.PEFT_TYPE_TO_TUNER_MAPPING[lava_key] = LavaModel
-    
-    # 저장 및 로드를 위한 프리픽스 설정
-    peft.utils.save_and_load.PEFT_TYPE_TO_PREFIX_MAPPING[lava_key] = "adapter_model"
-    peft.mapping.PEFT_TYPE_TO_PREFIX_MAPPING[lava_key] = "adapter_model"
-
-print("✅ LAVA 시스템이 PEFT 매핑에 성공적으로 등록되었습니다.")
-
-
-def print_trainable_parameters(model):
-    """
-    모델의 전체 파라미터 대비 학습 가능한 파라미터의 수와 비율을 출력합니다.
-    """
-    trainable_params = 0
-    all_param = 0
-    for _, param in model.named_parameters():
-        num_params = param.numel()
-        all_param += num_params
-        if param.requires_grad:
-            trainable_params += num_params
-    
-    print(
-        f"trainable params: {trainable_params:,} || all params: {all_param:,} || trainable%: {100 * trainable_params / all_param:.4f}"
-    )
-    
-    
-class BestMetricCallback(TrainerCallback):
-    def __init__(self, main_metric):
-        self.main_metric = f"eval_{main_metric}"
-        self.best_score = -float("inf")
-
-    def on_evaluate(self, args, state, control, metrics=None, **kwargs):
-        if metrics and self.main_metric in metrics:
-            current_score = metrics[self.main_metric]
-            if current_score > self.best_score:
-                self.best_score = current_score
-            # WandB에 현재까지의 Best 점수 기록
-            wandb.log({"eval/best_main": self.best_score}, step=state.global_step)
+# LAVA 등록
+register_lava()
 
 # ==========================================================
 # MaxEnt LAVA Trainer (🔥 CLEAN: FIXED LAMBDA, NO CONSTRAINT)
@@ -174,11 +112,12 @@ def main(args):
         )
 
     encoded = raw.map(
-        preprocess, 
-        batched=True, 
+        preprocess,
+        batched=True,
         keep_in_memory=True,  # 디스크 캐시 생성 방지
-        load_from_cache_file=False # 기존 캐시 무시
-    )    encoded = encoded.rename_column("label", "labels")
+        load_from_cache_file=False  # 기존 캐시 무시
+    )
+    encoded = encoded.rename_column("label", "labels")
     encoded.set_format(
         type="torch",
         columns=["input_ids", "attention_mask", "labels"],
@@ -338,17 +277,17 @@ def main(args):
 
     if at in ["lava", "lava_init"]:
         trainer = LavaNLUTrainer(
-        model=model,
-        args=args_out,
-        train_dataset=train_dataset,
-        eval_dataset=eval_dataset,
-        compute_metrics=compute_metrics,
-        tokenizer=tokenizer,
-        data_collator=data_collator,
-        lambda_vib=args.lambda_vib,              
-        lambda_stab=args.lambda_stab,            
-        lambda_latent_stability=args.lambda_latent_stab  
-    )
+            model=model,
+            args=args_out,
+            train_dataset=encoded["train"],
+            eval_dataset=encoded[eval_key],
+            compute_metrics=compute_metrics,
+            tokenizer=tokenizer,
+            callbacks=[best_callback],
+            lambda_vib=args.lambda_vib,
+            lambda_stab=args.lambda_stab,
+            lambda_latent_stability=args.lambda_latent_stability,
+        )
     else:
         trainer = Trainer(
             model=model,

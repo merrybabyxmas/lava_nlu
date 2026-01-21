@@ -2,7 +2,7 @@
   "task": "dtd",
   "seed": 1,
   "adapter": "bitfit",
-  "best_accuracy": 0.06436170212765957,
+  "best_accuracy": 0.7287234042553191,
   "lambda_vib": 1.0,
   "lambda_stab": 0.1,
   "lambda_latent_stability": 1.0

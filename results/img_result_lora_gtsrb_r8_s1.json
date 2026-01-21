@@ -1,0 +1,9 @@
+{
+  "task": "gtsrb",
+  "seed": 1,
+  "adapter": "lora",
+  "best_accuracy": 0.9869358669833729,
+  "lambda_vib": 1.0,
+  "lambda_stab": 0.1,
+  "lambda_latent_stability": 1.0
+}
