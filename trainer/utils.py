@@ -25,7 +25,25 @@ def setup_seed(seed: int):
     torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
+    torch.use_deterministic_algorithms(True, warn_only=True)
 
+    # LavaAdapter의 global seed 설정
+    try:
+        from peft.tuners.lava.layer import LavaAdapter
+        LavaAdapter.set_global_seed(seed)
+    except ImportError:
+        pass  # LAVA가 등록되지 않은 경우 무시
+
+
+def reset_lava_generators(model, seed: int = None):
+    """모델 내 모든 LavaAdapter의 generator를 리셋 (에폭 시작 시 호출 가능)"""
+    try:
+        from peft.tuners.lava.layer import LavaAdapter
+        for module in model.modules():
+            if isinstance(module, LavaAdapter):
+                module.reset_generator(seed)
+    except ImportError:
+        pass
 
 def register_lava():
     """LAVA를 PEFT 매핑에 등록"""

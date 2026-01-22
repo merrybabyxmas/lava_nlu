@@ -10,7 +10,7 @@ import json
 import os
 import sys
 
-def run_experiment(seed=42, epochs=1, task="dtd"):
+def run_experiment(seed=42, epochs=1, task="gtsrb"):
     """단일 실험 실행"""
     cmd = [
         "python", "train_vit.py",
@@ -28,7 +28,7 @@ def run_experiment(seed=42, epochs=1, task="dtd"):
     ]
 
     env = os.environ.copy()
-    env["CUDA_VISIBLE_DEVICES"] = "1"
+    env["CUDA_VISIBLE_DEVICES"] = "0"
 
     print(f"Running: {' '.join(cmd)}")
     print("-" * 40)
@@ -70,7 +70,7 @@ def main():
     print("=" * 60)
 
     seed = 42
-    task = "dtd"
+    task = "gtsrb"  # 이미 다운로드된 데이터 사용
     epochs = 1  # 빠른 테스트를 위해 1 epoch만
 
     # 첫 번째 실행

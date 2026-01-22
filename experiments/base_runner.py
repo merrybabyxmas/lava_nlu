@@ -545,7 +545,7 @@ ABLATION_GRID = {
         "fixed": {"vib": 1.0, "latent_stab": 1.0}
     },
     "latent_stab": {
-        "values": [0.1, 0.5, 1.0, 2.0],
+        "values": [0.1, 0.1, 0.1],
         "fixed": {"vib": 1.0, "logit_stab": 0.1}
     }
 }

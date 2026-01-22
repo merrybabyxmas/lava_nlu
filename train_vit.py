@@ -38,13 +38,17 @@ from trainer import LavaViTTrainer, setup_seed, register_lava, BestMetricCallbac
 register_lava()
 
 
-def worker_init_fn(worker_id):
-    """DataLoader worker의 시드를 고정하여 재현성 보장"""
-    import numpy as np
-    import random
-    worker_seed = torch.initial_seed() % 2**32
-    np.random.seed(worker_seed)
-    random.seed(worker_seed)
+def get_worker_init_fn(seed):
+    """DataLoader worker의 시드를 고정하여 재현성 보장하는 함수 반환"""
+    def worker_init_fn(worker_id):
+        import numpy as np
+        import random
+        # base_seed + worker_id로 각 worker가 고유하지만 재현 가능한 seed를 가짐
+        worker_seed = (seed + worker_id) % 2**32
+        np.random.seed(worker_seed)
+        random.seed(worker_seed)
+        torch.manual_seed(worker_seed)
+    return worker_init_fn
 
 
 # ============================================================
@@ -101,9 +105,15 @@ IMG_TASK_CONFIG = {
 # ============================================================
 # Torchvision Dataset Loader
 # ============================================================
-def load_torchvision_dataset(task: str, meta: dict, data_root: str = "./data"):
+def load_torchvision_dataset(task: str, meta: dict, data_root: str = "./data", seed: int = 42):
     """
     Torchvision 데이터셋을 HuggingFace Dataset 형식으로 변환
+
+    Args:
+        task: 태스크 이름
+        meta: 태스크 메타 정보
+        data_root: 데이터 저장 경로
+        seed: random_split에 사용할 시드 (재현성 보장)
     """
     tv_class = meta["tv_class"]
 
@@ -129,7 +139,7 @@ def load_torchvision_dataset(task: str, meta: dict, data_root: str = "./data"):
         val_len = total_len - train_len
         train_ds, val_ds = torch.utils.data.random_split(
             full_ds, [train_len, val_len],
-            generator=torch.Generator().manual_seed(42)
+            generator=torch.Generator().manual_seed(seed)  # args.seed 사용
         )
     else:
         raise ValueError(f"Unknown task: {task}")
@@ -193,6 +203,18 @@ def build_adapter(adapter_type, r=8, alpha=8, total_step=None):
 
 def main(args):
     task = args.task
+    # --- CUDA 확인 로그 추가 ---
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    print("=" * 60)
+    print(f"[DEVICE INFO] Using Device: {device.upper()}")
+    if torch.cuda.is_available():
+        print(f"[DEVICE INFO] GPU Name: {torch.cuda.get_device_name(0)}")
+        print(f"[DEVICE INFO] Available GPUs: {torch.cuda.device_count()}")
+    else:
+        print("[WARNING] CUDA is not available. Training will be slow on CPU.")
+    print("=" * 60)
+    # -----------------------
+    
     adapter_type = args.adapter.lower()
 
     meta = IMG_TASK_META[task]
@@ -205,7 +227,7 @@ def main(args):
 
     # 데이터셋 로드
     if meta.get("source") == "torchvision":
-        raw = load_torchvision_dataset(task, meta)
+        raw = load_torchvision_dataset(task, meta, seed=args.seed)
         split_train, split_val = "train", "test"
     else:
         # HuggingFace datasets
@@ -220,7 +242,8 @@ def main(args):
     model_name = "google/vit-base-patch16-224"
     processor = ViTImageProcessor.from_pretrained(model_name)
     base = ViTForImageClassification.from_pretrained(model_name, num_labels=num_labels, ignore_mismatched_sizes=True)
-
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    base.to(device)
     # 이미지 전처리
     def preprocess(examples):
         images = examples["image"]
@@ -232,14 +255,22 @@ def main(args):
             "labels": examples["label"]
         }
 
-    # 데이터 전처리 (keep_in_memory=False로 디스크 캐시 사용하여 RAM 절약)
+    # 캐시 디렉토리 설정 (태스크별로 캐시 저장)
+    cache_dir = os.path.join(os.path.dirname(__file__), ".cache", task)
+    os.makedirs(cache_dir, exist_ok=True)
+
+    train_cache = os.path.join(cache_dir, "train_preprocessed.arrow")
+    val_cache = os.path.join(cache_dir, "val_preprocessed.arrow")
+
+    # 데이터 전처리 (캐시 파일 명시적 지정)
     train_ds = raw[split_train].map(
         preprocess,
         batched=True,
         remove_columns=raw[split_train].column_names,
-        keep_in_memory=False,  # 디스크에 캐시하여 메모리 사용 줄이기
-        load_from_cache_file=True,  # 캐시 활용
-        batch_size=100,  # 작은 배치로 메모리 사용 줄이기
+        keep_in_memory=False,
+        load_from_cache_file=True,
+        cache_file_name=train_cache,
+        batch_size=100,
     )
     val_ds = raw[split_val].map(
         preprocess,
@@ -247,6 +278,7 @@ def main(args):
         remove_columns=raw[split_val].column_names,
         keep_in_memory=False,
         load_from_cache_file=True,
+        cache_file_name=val_cache,
         batch_size=100,
     )
     train_ds.set_format("torch")
@@ -360,8 +392,10 @@ def main(args):
         disable_tqdm=False,
         log_level="info",
         label_names=["labels"],  # compute_metrics 호출을 위해 명시적으로 설정
-        dataloader_num_workers=0,  # 시드 재현성을 위해 메인 프로세스에서 로드
+        dataloader_num_workers=4,  # 시드 재현성을 위해 메인 프로세스에서 로드
         dataloader_pin_memory=False,  # RAM 메모리 사용 줄이기
+        use_cpu=False,  # GPU 강제 사용
+        no_cuda=False,  # CUDA 비활성화 안함
     )
 
     callback = BestMetricCallback("accuracy")
@@ -377,6 +411,7 @@ def main(args):
             lambda_vib=args.lambda_vib,
             lambda_stab=args.lambda_stab,
             lambda_latent_stability=args.lambda_latent_stability,
+            dataloader_seed=args.seed,  # 재현성을 위한 seed 전달
         )
     else:
         trainer = Trainer(

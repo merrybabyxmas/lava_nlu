@@ -1,17 +1,85 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import random
+import numpy as np
+from torch.utils.data import DataLoader
 from transformers import Trainer
-from typing import Dict, Union, Any
+from transformers.trainer_utils import seed_worker
+from typing import Dict, Union, Any, Optional
 
 class LavaBaseTrainer(Trainer):
-    def __init__(self, *args, lambda_vib=1.0, lambda_latent_stability=1.0, lambda_stab=0.1, **kwargs):
+    def __init__(self, *args, lambda_vib=1.0, lambda_latent_stability=1.0, lambda_stab=0.1,
+                 dataloader_seed: Optional[int] = None, **kwargs):
         super().__init__(*args, **kwargs)
         self.lambda_vib = lambda_vib
         self.lambda_latent_stability = lambda_latent_stability
         self.lambda_stab = lambda_stab  # 이제 0.1 등의 가중치가 정상 작동합니다.
-        
+
         self.loss_track = {"task_loss": 0, "vib": 0, "logit_stab": 0, "latent_stab": 0}
+
+        # DataLoader 재현성을 위한 seed 저장
+        self.dataloader_seed = dataloader_seed if dataloader_seed is not None else self.args.seed
+
+    def _get_worker_init_fn(self):
+        """각 worker에 대해 재현 가능한 seed를 설정하는 함수 반환"""
+        base_seed = self.dataloader_seed
+        def worker_init_fn(worker_id):
+            worker_seed = (base_seed + worker_id) % 2**32
+            np.random.seed(worker_seed)
+            random.seed(worker_seed)
+            torch.manual_seed(worker_seed)
+        return worker_init_fn
+
+    def get_train_dataloader(self) -> DataLoader:
+        """Train DataLoader에 worker_init_fn과 generator 추가"""
+        if self.train_dataset is None:
+            raise ValueError("Trainer: training requires a train_dataset.")
+
+        train_dataset = self.train_dataset
+        data_collator = self.data_collator
+
+        # Reproducibility를 위한 generator
+        g = torch.Generator()
+        g.manual_seed(self.dataloader_seed)
+
+        dataloader_params = {
+            "batch_size": self._train_batch_size,
+            "collate_fn": data_collator,
+            "num_workers": self.args.dataloader_num_workers,
+            "pin_memory": self.args.dataloader_pin_memory,
+            "shuffle": True,
+            "drop_last": self.args.dataloader_drop_last,
+            "worker_init_fn": self._get_worker_init_fn(),
+            "generator": g,
+        }
+
+        return DataLoader(train_dataset, **dataloader_params)
+
+    def get_eval_dataloader(self, eval_dataset=None) -> DataLoader:
+        """Eval DataLoader에 worker_init_fn과 generator 추가"""
+        if eval_dataset is None and self.eval_dataset is None:
+            raise ValueError("Trainer: evaluation requires an eval_dataset.")
+
+        eval_dataset = eval_dataset if eval_dataset is not None else self.eval_dataset
+        data_collator = self.data_collator
+
+        # Reproducibility를 위한 generator (eval은 shuffle 없으므로 선택적)
+        g = torch.Generator()
+        g.manual_seed(self.dataloader_seed)
+
+        dataloader_params = {
+            "batch_size": self.args.eval_batch_size,
+            "collate_fn": data_collator,
+            "num_workers": self.args.dataloader_num_workers,
+            "pin_memory": self.args.dataloader_pin_memory,
+            "shuffle": False,
+            "drop_last": False,
+            "worker_init_fn": self._get_worker_init_fn(),
+            "generator": g,
+        }
+
+        return DataLoader(eval_dataset, **dataloader_params)
 
     def _get_task_specific_inputs(self, inputs):
         return inputs
