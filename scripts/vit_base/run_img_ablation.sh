@@ -17,18 +17,18 @@ export PYTHONUNBUFFERED=1
 
 # GPU 설정 (병렬 실행)
 GPUS="0"           # 사용할 GPU ID (예: "0,1,2,3")
-PER_GPU_TASKS=3      # GPU당 동시 실행 작업 수
+PER_GPU_TASKS=4      # GPU당 동시 실행 작업 수
 
 # 실험 설정
-SEEDS="1"
+SEEDS="2"
 # TASKS="dtd,eurosat,gtsrb,resisc45,sun397,svhn"
-TASKS="gtsrb"  # 빠른 테스트용 c
-PARAM="latent_stab"  # vib / logit_stab / latent_stab / all
+TASKS="dtd"  # 빠른 테스트용 c
+PARAM="all"  # vib / logit_stab / latent_stab / all
 
 # Training Parameters
 LR=1e-4
-BATCH_SIZE=32
-EPOCHS=2
+BATCH_SIZE=16
+EPOCHS=30
 
 # LoRA Parameters
 R=8

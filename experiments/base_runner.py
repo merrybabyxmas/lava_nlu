@@ -324,9 +324,8 @@ class BaseExperimentRunner(ABC):
             stdout_thread.start()
             stderr_thread.start()
 
-            # 프로세스 완료 대기 (2시간 타임아웃)
             try:
-                process.wait(timeout=1000000000)
+                process.wait(timeout=100000000)
             except subprocess.TimeoutExpired:
                 process.kill()
                 stdout_thread.join(timeout=5)
@@ -537,15 +536,15 @@ COMPARISON_METHODS = ["bitfit", "lora", "adalora", "dora", "pissa", "lava"]
 # Ablation 그리드
 ABLATION_GRID = {
     "vib": {
-        "values": [0.1, 0.5, 1.0, 2.0],
-        "fixed": {"logit_stab": 0.1, "latent_stab": 1.0}
+        "values": [0.0, 0.5, 1.0, 2.0, 3.0, 5.0],
+        "fixed": {"logit_stab": 0.0, "latent_stab": 0.0}
     },
     "logit_stab": {
-        "values": [0.01, 0.05, 0.1, 0.5],
-        "fixed": {"vib": 1.0, "latent_stab": 1.0}
+        "values": [0.01, 0.1, 0.5],
+        "fixed": {"vib": 0.0, "latent_stab": 0.0}
     },
     "latent_stab": {
-        "values": [0.1, 0.1, 0.1],
-        "fixed": {"vib": 1.0, "logit_stab": 0.1}
+        "values": [0.1, 0.5, 1.0, 2.0],
+        "fixed": {"vib": 0.0, "logit_stab": 0.0}
     }
 }

@@ -39,11 +39,9 @@ register_lava()
 
 
 def get_worker_init_fn(seed):
-    """DataLoader worker의 시드를 고정하여 재현성 보장하는 함수 반환"""
     def worker_init_fn(worker_id):
         import numpy as np
         import random
-        # base_seed + worker_id로 각 worker가 고유하지만 재현 가능한 seed를 가짐
         worker_seed = (seed + worker_id) % 2**32
         np.random.seed(worker_seed)
         random.seed(worker_seed)
@@ -139,7 +137,7 @@ def load_torchvision_dataset(task: str, meta: dict, data_root: str = "./data", s
         val_len = total_len - train_len
         train_ds, val_ds = torch.utils.data.random_split(
             full_ds, [train_len, val_len],
-            generator=torch.Generator().manual_seed(seed)  # args.seed 사용
+            generator=torch.Generator().manual_seed(seed)  
         )
     else:
         raise ValueError(f"Unknown task: {task}")
@@ -393,7 +391,7 @@ def main(args):
         log_level="info",
         label_names=["labels"],  # compute_metrics 호출을 위해 명시적으로 설정
         dataloader_num_workers=4,  # 시드 재현성을 위해 메인 프로세스에서 로드
-        dataloader_pin_memory=False,  # RAM 메모리 사용 줄이기
+        dataloader_pin_memory=True,  
         use_cpu=False,  # GPU 강제 사용
         no_cuda=False,  # CUDA 비활성화 안함
     )
@@ -411,7 +409,7 @@ def main(args):
             lambda_vib=args.lambda_vib,
             lambda_stab=args.lambda_stab,
             lambda_latent_stability=args.lambda_latent_stability,
-            dataloader_seed=args.seed,  # 재현성을 위한 seed 전달
+            dataloader_seed=args.seed,  
         )
     else:
         trainer = Trainer(

@@ -12,6 +12,7 @@ data/
 *.pt
 *.pth
 .cache/
+results/
 
 # --- 추가 권장 항목 ---
 
