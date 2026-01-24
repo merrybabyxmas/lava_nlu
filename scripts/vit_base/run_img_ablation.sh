@@ -16,13 +16,13 @@ export PYTHONUNBUFFERED=1
 # ============================================================
 
 # GPU 설정 (병렬 실행)
-GPUS="0"           # 사용할 GPU ID (예: "0,1,2,3")
+GPUS="0,2"           # 사용할 GPU ID (예: "0,1,2,3")
 PER_GPU_TASKS=4      # GPU당 동시 실행 작업 수
 
 # 실험 설정
 SEEDS="2"
 # TASKS="dtd,eurosat,gtsrb,resisc45,sun397,svhn"
-TASKS="dtd"  # 빠른 테스트용 c
+TASKS="eurosat"  # 빠른 테스트용 c
 PARAM="all"  # vib / logit_stab / latent_stab / all
 
 # Training Parameters
@@ -32,7 +32,7 @@ EPOCHS=30
 
 # LoRA Parameters
 R=8
-ALPHA=8
+ALPHA=4
 
 # LAVA Lambda Parameters (기본값 - ablation에서는 param별로 그리드 탐색)
 LAMBDA_VIB=0.0
