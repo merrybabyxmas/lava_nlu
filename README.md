@@ -34,8 +34,8 @@ cd lava
 # Activate the lava environment (created by PEFT_LAVA setup)
 conda activate lava
 
-# Install LAVA dependencies
-pip install -e .
+# Install LAVA dependencies (peft is excluded from requirements.txt to use peft_lava)
+pip install -r requirements.txt
 ```
 
 ## Usage
