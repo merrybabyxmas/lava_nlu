@@ -540,7 +540,7 @@ COMPARISON_METHODS = ["bitfit", "lora", "adalora", "dora", "pissa", "lava"]
 # Ablation 그리드 (logit_stab 제거됨)
 ABLATION_GRID = {
     "vib": {
-        "values": [0.0, 0.5, 1.0, 2.0, 3.0, 5.0],
+        "values": [0.0, 0.01, 0.1, 0.5, 1.0, 2.0],
         "fixed": {"latent_stab": 0.0}
     },
     "latent_stab": {

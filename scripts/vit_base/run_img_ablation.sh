@@ -19,10 +19,10 @@ GPUS="0"           # 사용할 GPU ID (예: "0,1,2,3")
 PER_GPU_TASKS=4      # GPU당 동시 실행 작업 수
 
 # 실험 설정
-SEEDS="1,2,42"
+SEEDS="1"
 # TASKS="dtd,eurosat,gtsrb,resisc45,sun397,svhn"
 TASKS="eurosat"  # 빠른 테스트용
-PARAM="latent_stab"  # vib / latent_stab / all
+PARAM="all"  # vib / latent_stab / all
 
 # Training Parameters
 LR=1e-4
@@ -38,7 +38,7 @@ LAMBDA_VIB=0.0
 LAMBDA_LATENT_STAB=1.0
 
 # Wandb 설정
-WANDB_PROJECT="IMG-Ablation"
+WANDB_PROJECT="IMG-newAblation"
 
 TEST_MODE=false
 
