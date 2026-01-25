@@ -59,7 +59,7 @@ class ImageAblationRunner(BaseExperimentRunner):
         return self._tasks
 
     def run_single_experiment(self, task: str, seed: int,
-                              vib: float, logit_stab: float, latent_stab: float,
+                              vib: float, latent_stab: float,
                               gpu_id: str = None) -> float:
         """단일 실험 실행 (GPU ID 지정 가능)"""
         tc = self.training_config
@@ -78,7 +78,6 @@ class ImageAblationRunner(BaseExperimentRunner):
             "--r", str(lc.r),
             "--alpha", str(lc.alpha),
             "--lambda_vib", str(vib),
-            "--lambda_stab", str(logit_stab),
             "--lambda_latent_stability", str(latent_stab),
             "--wandb_project", self.wandb_project,
         ]
@@ -86,7 +85,7 @@ class ImageAblationRunner(BaseExperimentRunner):
         if not self.use_wandb:
             cmd.append("--no_wandb")
 
-        job_name = f"lava_{task}_s{seed}_vib{vib}_stab{logit_stab}_lat{latent_stab}"
+        job_name = f"lava_{task}_s{seed}_vib{vib}_lat{latent_stab}"
 
         if self.test_mode:
             dummy = self.get_dummy_result()
@@ -100,7 +99,7 @@ class ImageAblationRunner(BaseExperimentRunner):
         if ret_code != 0:
             return 0.0
 
-        result_file = self.result_dir / f"img_result_{task}_s{seed}_vib{vib}_stab{logit_stab}_lat{latent_stab}.json"
+        result_file = self.result_dir / f"img_result_{task}_s{seed}_vib{vib}_lat{latent_stab}.json"
         if result_file.exists():
             with open(result_file, 'r') as f:
                 data = json.load(f)
@@ -110,12 +109,12 @@ class ImageAblationRunner(BaseExperimentRunner):
         return 0.0
 
     def _job_executor(self, gpu_id: str, task: str, seed: int,
-                      vib: float, logit_stab: float, latent_stab: float) -> dict:
+                      vib: float, latent_stab: float) -> dict:
         """병렬 작업 실행기"""
-        score = self.run_single_experiment(task, seed, vib, logit_stab, latent_stab, gpu_id)
+        score = self.run_single_experiment(task, seed, vib, latent_stab, gpu_id)
         return {
             "task": task, "seed": seed, "score": score,
-            "vib": vib, "logit_stab": logit_stab, "latent_stab": latent_stab
+            "vib": vib, "latent_stab": latent_stab
         }
 
     def run_ablation_for_param(self, param_type: str):
@@ -135,11 +134,9 @@ class ImageAblationRunner(BaseExperimentRunner):
         jobs = []
         for val in values:
             if param_type == "vib":
-                vib, logit_stab, latent_stab = val, fixed["logit_stab"], fixed["latent_stab"]
-            elif param_type == "logit_stab":
-                vib, logit_stab, latent_stab = fixed["vib"], val, fixed["latent_stab"]
-            else:
-                vib, logit_stab, latent_stab = fixed["vib"], fixed["logit_stab"], val
+                vib, latent_stab = val, fixed["latent_stab"]
+            else:  # latent_stab
+                vib, latent_stab = fixed["vib"], val
 
             for seed in self.seeds:
                 for task in self._tasks:
@@ -147,7 +144,6 @@ class ImageAblationRunner(BaseExperimentRunner):
                         "task": task,
                         "seed": seed,
                         "vib": vib,
-                        "logit_stab": logit_stab,
                         "latent_stab": latent_stab
                     })
 
@@ -158,20 +154,18 @@ class ImageAblationRunner(BaseExperimentRunner):
         config_results = defaultdict(lambda: defaultdict(dict))
         for res in results:
             if res:
-                key = (res["vib"], res["logit_stab"], res["latent_stab"], res["seed"])
+                key = (res["vib"], res["latent_stab"], res["seed"])
                 config_results[key][res["task"]] = res["score"]
 
         # CSV에 기록
         for val in values:
             if param_type == "vib":
-                vib, logit_stab, latent_stab = val, fixed["logit_stab"], fixed["latent_stab"]
-            elif param_type == "logit_stab":
-                vib, logit_stab, latent_stab = fixed["vib"], val, fixed["latent_stab"]
-            else:
-                vib, logit_stab, latent_stab = fixed["vib"], fixed["logit_stab"], val
+                vib, latent_stab = val, fixed["latent_stab"]
+            else:  # latent_stab
+                vib, latent_stab = fixed["vib"], val
 
             for seed in self.seeds:
-                key = (vib, logit_stab, latent_stab, seed)
+                key = (vib, latent_stab, seed)
                 task_results = config_results[key]
 
                 avg = self.calculate_average(task_results)
@@ -179,7 +173,7 @@ class ImageAblationRunner(BaseExperimentRunner):
                 row = {
                     "seed": seed,
                     "vib": vib,
-                    "logit stab / latent stab": f"{logit_stab} / {latent_stab}",
+                    "latent_stab": latent_stab,
                     "avg": f"{avg*100:.2f}"
                 }
 
@@ -191,7 +185,7 @@ class ImageAblationRunner(BaseExperimentRunner):
     def run_all_experiments(self, param_types=None):
         """모든 ablation 실험 실행"""
         if param_types is None:
-            param_types = ["vib", "logit_stab", "latent_stab"]
+            param_types = ["vib", "latent_stab"]
 
         self.save_metadata({"ablation_params": param_types})
         self.init_csv()
@@ -216,7 +210,7 @@ def main():
                         help="GPU당 동시 실행 작업 수")
     parser.add_argument("--test", action="store_true")
     parser.add_argument("--tasks", type=str, default=None)
-    parser.add_argument("--param", type=str, choices=["vib", "logit_stab", "latent_stab", "all"],
+    parser.add_argument("--param", type=str, choices=["vib", "latent_stab", "all"],
                         default="all")
     parser.add_argument("--output_dir", type=str, default=None)
 
@@ -235,7 +229,6 @@ def main():
 
     # LAVA Lambda Config (기본값 - ablation에서는 그리드로 override됨)
     parser.add_argument("--lambda_vib", type=float, default=1.0)
-    parser.add_argument("--lambda_stab", type=float, default=0.1)
     parser.add_argument("--lambda_latent_stab", type=float, default=1.0)
 
     args = parser.parse_args()

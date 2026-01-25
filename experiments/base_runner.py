@@ -511,7 +511,7 @@ GLUE_CSV_COLUMNS = [
 ]
 
 GLUE_ABLATION_CSV_COLUMNS = [
-    "seed", "vib", "logit stab / latent stab",
+    "seed", "vib", "latent_stab",
     "rte", "mrpc", "cola", "stsb", "sst2", "qnli", "qqp", "mnli", "avg"
 ]
 
@@ -527,7 +527,7 @@ IMG_CSV_COLUMNS = [
 ]
 
 IMG_ABLATION_CSV_COLUMNS = [
-    "seed", "vib", "logit stab / latent stab",
+    "seed", "vib", "latent_stab",
     "dtd", "eurosat", "gtsrb", "resisc45", "sun397", "svhn", "avg"
 ]
 
@@ -537,18 +537,14 @@ IMG_ABLATION_CSV_COLUMNS = [
 # ============================================================
 COMPARISON_METHODS = ["bitfit", "lora", "adalora", "dora", "pissa", "lava"]
 
-# Ablation 그리드
+# Ablation 그리드 (logit_stab 제거됨)
 ABLATION_GRID = {
     "vib": {
         "values": [0.0, 0.5, 1.0, 2.0, 3.0, 5.0],
-        "fixed": {"logit_stab": 0.0, "latent_stab": 0.0}
-    },
-    "logit_stab": {
-        "values": [0, 0.05, 0.1, 0.5],
-        "fixed": {"vib": 0.0, "latent_stab": 0.0}
+        "fixed": {"latent_stab": 0.0}
     },
     "latent_stab": {
         "values": [0.1, 0.5, 1.0, 2.0],
-        "fixed": {"vib": 0.0, "logit_stab": 0.0}
+        "fixed": {"vib": 0.0}
     }
 }

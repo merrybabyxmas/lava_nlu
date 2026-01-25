@@ -6,8 +6,7 @@ export PYTHONUNBUFFERED=1
 # ============================================================
 # Image Classification Ablation: LAVA Hyperparameter Sensitivity (병렬 GPU 실행)
 # ============================================================
-# VIB: 0.1, 0.5, 1.0, 2.0
-# Logit Stab: 0.01, 0.05, 0.1, 0.5
+# VIB: 0.0, 0.5, 1.0, 2.0, 3.0, 5.0
 # Latent Stab: 0.1, 0.5, 1.0, 2.0
 # Output: outputs/img_ablation_YYYYMMDD_HHMMSS/
 #         ├── results.csv
@@ -22,8 +21,8 @@ PER_GPU_TASKS=4      # GPU당 동시 실행 작업 수
 # 실험 설정
 SEEDS="1,2,42"
 # TASKS="dtd,eurosat,gtsrb,resisc45,sun397,svhn"
-TASKS="eurosat"  # 빠른 테스트용 c
-PARAM="latent_stab"  # vib / logit_stab / latent_stab / all
+TASKS="eurosat"  # 빠른 테스트용
+PARAM="latent_stab"  # vib / latent_stab / all
 
 # Training Parameters
 LR=1e-4
@@ -36,7 +35,6 @@ ALPHA=4
 
 # LAVA Lambda Parameters (기본값 - ablation에서는 param별로 그리드 탐색)
 LAMBDA_VIB=0.0
-LAMBDA_STAB=0.1
 LAMBDA_LATENT_STAB=1.0
 
 # Wandb 설정
@@ -69,7 +67,6 @@ if [ "$TEST_MODE" = true ]; then
         --r $R \
         --alpha $ALPHA \
         --lambda_vib $LAMBDA_VIB \
-        --lambda_stab $LAMBDA_STAB \
         --lambda_latent_stab $LAMBDA_LATENT_STAB \
         --wandb_project "$WANDB_PROJECT" \
         --test
@@ -87,7 +84,6 @@ else
         --r $R \
         --alpha $ALPHA \
         --lambda_vib $LAMBDA_VIB \
-        --lambda_stab $LAMBDA_STAB \
         --lambda_latent_stab $LAMBDA_LATENT_STAB \
         --wandb_project "$WANDB_PROJECT"
 fi

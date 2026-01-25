@@ -23,7 +23,7 @@ PER_GPU_TASKS=3      # GPU당 동시 실행 작업 수 (RAM 메모리 절약을 
 SEEDS="1,2,42"
 
 # TASKS="dtd,eurosat,gtsrb,resisc45,sun397,svhn"
-TASKS="dtd"  # 빠른 테스트용
+TASKS="eurosat"  # 빠른 테스트용
 # METHODS="bitfit,lora,adalora,dora,pissa"
 METHODS="lava"
 
