@@ -10,3 +10,4 @@ attrdict
 human_eval
 evalplus
 fraction
+wandb
