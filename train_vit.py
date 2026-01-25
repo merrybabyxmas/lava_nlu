@@ -393,7 +393,7 @@ def main(args):
         log_level="info",
         label_names=["labels"],  # compute_metrics 호출을 위해 명시적으로 설정
         dataloader_num_workers=4,  # 시드 재현성을 위해 메인 프로세스에서 로드
-        dataloader_pin_memory=False,  # RAM 메모리 사용 줄이기
+        dataloader_pin_memory=True,  # RAM 메모리 사용 줄이기
         use_cpu=False,  # GPU 강제 사용
         no_cuda=False,  # CUDA 비활성화 안함
     )

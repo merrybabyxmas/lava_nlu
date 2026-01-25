@@ -2,7 +2,7 @@
   "task": "gtsrb",
   "seed": 1,
   "adapter": "lava",
-  "best_accuracy": 0.9563737133808393,
+  "best_accuracy": 0.9558194774346793,
   "lambda_vib": 1.0,
   "lambda_stab": 0.1,
   "lambda_latent_stability": 0.1

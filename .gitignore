@@ -12,7 +12,8 @@ data/
 *.pt
 *.pth
 .cache/
-
+.results/
+results/
 # --- 추가 권장 항목 ---
 
 # Python 관련 (바이트코드 및 빌드 파일)
