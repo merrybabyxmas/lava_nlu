@@ -345,7 +345,7 @@ def main(args):
     print(f"[CONFIG] Seed: {args.seed} | Epochs: {epochs} | Batch: {batch} | LR: {lr}")
     print(f"[CONFIG] Rank: {args.r} | Alpha: {args.alpha}")
     if adapter_type == "lava":
-        print(f"[CONFIG] Lambda VIB: {args.lambda_vib} | Stab: {args.lambda_stab} | Latent: {args.lambda_latent_stability}")
+        print(f"[CONFIG] Lambda VIB: {args.lambda_vib} | Latent: {args.lambda_latent_stability}")
     print(f"[MODEL] Trainable: {trainable:,} / {total:,} ({100*trainable/total:.4f}%)")
     print(f"[DATA] Train: {len(train_ds)} | Val: {len(val_ds)}")
     print("=" * 60)
@@ -407,9 +407,8 @@ def main(args):
             compute_metrics=compute_metrics,
             callbacks=[callback],
             lambda_vib=args.lambda_vib,
-            lambda_stab=args.lambda_stab,
             lambda_latent_stability=args.lambda_latent_stability,
-            dataloader_seed=args.seed,  
+            dataloader_seed=args.seed,
         )
     else:
         trainer = Trainer(
@@ -442,7 +441,7 @@ def main(args):
     if adapter_type == "lava":
         result_file = os.path.join(
             result_dir,
-            f"img_result_{task}_s{args.seed}_vib{args.lambda_vib}_stab{args.lambda_stab}_lat{args.lambda_latent_stability}.json"
+            f"img_result_{task}_s{args.seed}_vib{args.lambda_vib}_lat{args.lambda_latent_stability}.json"
         )
     else:
         result_file = os.path.join(
@@ -457,7 +456,6 @@ def main(args):
             "adapter": adapter_type,
             "best_accuracy": best_acc if best_acc else 0.0,
             "lambda_vib": args.lambda_vib,
-            "lambda_stab": args.lambda_stab,
             "lambda_latent_stability": args.lambda_latent_stability,
         }, f, indent=2)
 
@@ -500,7 +498,6 @@ if __name__ == "__main__":
 
     # LAVA Specific Parameters
     parser.add_argument("--lambda_vib", type=float, default=1.0, help="VIB loss weight")
-    parser.add_argument("--lambda_stab", type=float, default=0.1, help="Logit stability weight")
     parser.add_argument("--lambda_latent_stability", type=float, default=1.0, help="Latent stability weight")
     parser.add_argument("--latent_dim", type=int, default=16, help="LAVA latent dimension")
     parser.add_argument("--kl_annealing", action="store_true", help="Enable KL annealing")

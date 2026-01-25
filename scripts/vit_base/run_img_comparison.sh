@@ -23,9 +23,9 @@ PER_GPU_TASKS=3      # GPU당 동시 실행 작업 수 (RAM 메모리 절약을 
 SEEDS="1,2,42"
 
 # TASKS="dtd,eurosat,gtsrb,resisc45,sun397,svhn"
-TASKS="sun397"  # 빠른 테스트용
-METHODS="bitfit,lora,adalora,dora,pissa"
-# METHODS="dora, pissa, adalora, adalora"
+TASKS="dtd"  # 빠른 테스트용
+# METHODS="bitfit,lora,adalora,dora,pissa"
+METHODS="lava"
 
 
 # Training Parameters
@@ -41,15 +41,16 @@ ALPHA=8
 LORA_DROPOUT=0.1
 
 LAMBDA_VIB=1.0
-LAMBDA_STAB=0.5
 LAMBDA_LATENT_STAB=0.0
 
 # Wandb 설정
-WANDB_PROJECT="IMG-Comparison"
+WANDB_PROJECT="IMG-Comparisontest"
 
 TEST_MODE=false
 
-cd /home/dongwoo39/LAVA
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+cd "$PROJECT_ROOT"
 
 echo "============================================================"
 echo " Image Classification Comparison 실험"
@@ -71,7 +72,6 @@ if [ "$TEST_MODE" = true ]; then
         --weight_decay $WEIGHT_DECAY \
         --warmup_ratio $WARMUP_RATIO \
         --lambda_vib $LAMBDA_VIB \
-        --lambda_stab $LAMBDA_STAB \
         --lambda_latent_stab $LAMBDA_LATENT_STAB \
         --r $R \
         --alpha $ALPHA \
@@ -93,7 +93,6 @@ else
         --warmup_ratio $WARMUP_RATIO \
         --r $R \
         --lambda_vib $LAMBDA_VIB \
-        --lambda_stab $LAMBDA_STAB \
         --lambda_latent_stab $LAMBDA_LATENT_STAB \
         --alpha $ALPHA \
         --lora_dropout $LORA_DROPOUT \

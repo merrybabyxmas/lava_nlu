@@ -44,7 +44,10 @@ WANDB_PROJECT="GLUE-Ablation"
 
 TEST_MODE=false
 
-cd /home/dongwoo39/LAVA
+# 스크립트 위치 기반 프로젝트 루트 자동 탐지
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+cd "$PROJECT_ROOT"
 
 echo "============================================================"
 echo " GLUE Ablation 실험"

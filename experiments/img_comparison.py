@@ -210,7 +210,6 @@ def main():
     parser.add_argument("--alpha", type=int, default=16)
     parser.add_argument("--lora_dropout", type=float, default=0.1)
     parser.add_argument("--lambda_vib", type=float, default=1.0)
-    parser.add_argument("--lambda_stab", type=float, default=0.1)
     parser.add_argument("--lambda_latent_stab", type=float, default=1.0)
 
     args = parser.parse_args()
@@ -236,7 +235,6 @@ def main():
 
     lava_config = LAVAConfig(
         lambda_vib=args.lambda_vib,
-        lambda_stab=args.lambda_stab,
         lambda_latent_stability=args.lambda_latent_stab,
     )
 

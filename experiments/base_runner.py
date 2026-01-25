@@ -48,7 +48,6 @@ class LoRAConfig:
 class LAVAConfig:
     """LAVA Specific Parameters"""
     lambda_vib: float = 1.0
-    lambda_stab: float = 0.1
     lambda_latent_stability: float = 1.0
     latent_dim: int = 16
     noise_scale: float = 1.0
@@ -251,12 +250,17 @@ class BaseExperimentRunner(ABC):
             "--lora_dropout", str(lc.dropout),
         ]
 
+        # Wandb 설정 전달
+        if self.use_wandb:
+            args.extend(["--wandb_project", self.wandb_project])
+        else:
+            args.append("--no_wandb")
+
         # LAVA 전용 파라미터
         if method == "lava":
             lv = self.lava_config
             args.extend([
                 "--lambda_vib", str(lv.lambda_vib),
-                "--lambda_stab", str(lv.lambda_stab),
                 "--lambda_latent_stability", str(lv.lambda_latent_stability),
                 "--latent_dim", str(lv.latent_dim),
                 "--noise_scale", str(lv.noise_scale),
@@ -540,7 +544,7 @@ ABLATION_GRID = {
         "fixed": {"logit_stab": 0.0, "latent_stab": 0.0}
     },
     "logit_stab": {
-        "values": [0.01, 0.1, 0.5],
+        "values": [0, 0.05, 0.1, 0.5],
         "fixed": {"vib": 0.0, "latent_stab": 0.0}
     },
     "latent_stab": {
