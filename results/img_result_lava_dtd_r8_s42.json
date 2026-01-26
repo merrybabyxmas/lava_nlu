@@ -1,9 +1,0 @@
-{
-  "task": "dtd",
-  "seed": 42,
-  "adapter": "lava",
-  "best_accuracy": 0.750531914893617,
-  "lambda_vib": 1.0,
-  "lambda_stab": 0.5,
-  "lambda_latent_stability": 0.0
-}

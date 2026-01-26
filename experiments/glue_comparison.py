@@ -90,9 +90,9 @@ class GLUEComparisonRunner(BaseExperimentRunner):
         # JSON 결과 파일 읽기
         lv = self.lava_config
         if method == "lava":
-            result_file = self.result_dir / f"result_{task}_s{seed}_vib{lv.lambda_vib}_stab{lv.lambda_stab}_lat{lv.lambda_latent_stability}.json"
+            result_file = self.result_dir / f"result_{task}_s{seed}_vib{lv.lambda_vib}_lat{lv.lambda_latent_stability}.json"
         else:
-            result_file = self.result_dir / f"result_{task}_s{seed}_vib1.0_stab0.1_lat1.0.json"
+            result_file = self.result_dir / f"result_{task}_s{seed}_vib1.0_lat1.0.json"
 
         if result_file.exists():
             with open(result_file, 'r') as f:
@@ -213,7 +213,6 @@ def main():
 
     # LAVA Lambda Config
     parser.add_argument("--lambda_vib", type=float, default=1.0)
-    parser.add_argument("--lambda_stab", type=float, default=0.1)
     parser.add_argument("--lambda_latent_stab", type=float, default=1.0)
 
     args = parser.parse_args()
@@ -239,7 +238,6 @@ def main():
 
     lava_config = LAVAConfig(
         lambda_vib=args.lambda_vib,
-        lambda_stab=args.lambda_stab,
         lambda_latent_stability=args.lambda_latent_stab,
     )
 

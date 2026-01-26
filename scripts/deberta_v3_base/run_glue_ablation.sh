@@ -6,8 +6,7 @@ export PYTHONUNBUFFERED=1
 # ============================================================
 # GLUE Ablation: LAVA Hyperparameter Sensitivity (병렬 GPU 실행)
 # ============================================================
-# VIB: 0.1, 0.5, 1.0, 2.0
-# Logit Stab: 0.01, 0.05, 0.1, 0.5
+# VIB: 0.0, 0.5, 1.0, 2.0, 3.0, 5.0
 # Latent Stab: 0.1, 0.5, 1.0, 2.0
 # Output: outputs/glue_ablation_YYYYMMDD_HHMMSS/
 #         ├── results.csv
@@ -16,31 +15,34 @@ export PYTHONUNBUFFERED=1
 # ============================================================
 
 # GPU 설정 (병렬 실행)
-GPUS="0,1"           # 사용할 GPU ID (예: "0,1,2,3")
-PER_GPU_TASKS=3      # GPU당 동시 실행 작업 수
+GPUS="0,2"           # 사용할 GPU ID (예: "0,1,2,3")
+PER_GPU_TASKS=4      # GPU당 동시 실행 작업 수 (RAM 메모리 절약을 위해 1로 설정)
 
 # 실험 설정
-SEEDS="1,2,42"
+# SEEDS="1,2,42"
+SEEDS="1"
+
 TASKS="rte,mrpc,cola,stsb,sst2,qnli,qqp,mnli"
 # TASKS="mrpc,rte"  # 빠른 테스트용
-PARAM="all"  # vib / logit_stab / latent_stab / all
+PARAM="all"  # vib / latent_stab / all
 
 # Training Parameters
-LR=5e-4
+LR=1e-4
 BATCH_SIZE=32
-EPOCHS=30
+EPOCHS=15
+WEIGHT_DECAY=0.01
+WARMUP_RATIO=0.1
 
 # LoRA Parameters
-R=16
-ALPHA=16
+R=8
+ALPHA=8
+LORA_DROPOUT=0.1
 
-# LAVA Lambda Parameters (기본값 - ablation에서는 param별로 그리드 탐색)
-LAMBDA_VIB=1.0
-LAMBDA_STAB=0.1
-LAMBDA_LATENT_STAB=1.0
+LAMBDA_VIB=0.0
+LAMBDA_LATENT_STAB=0.0
 
 # Wandb 설정
-WANDB_PROJECT="GLUE-Ablation"
+WANDB_PROJECT="GLUE-ablation"
 
 TEST_MODE=false
 
@@ -66,10 +68,12 @@ if [ "$TEST_MODE" = true ]; then
         --lr $LR \
         --batch_size $BATCH_SIZE \
         --epochs $EPOCHS \
+        --weight_decay $WEIGHT_DECAY \
+        --warmup_ratio $WARMUP_RATIO \
         --r $R \
         --alpha $ALPHA \
+        --lora_dropout $LORA_DROPOUT \
         --lambda_vib $LAMBDA_VIB \
-        --lambda_stab $LAMBDA_STAB \
         --lambda_latent_stab $LAMBDA_LATENT_STAB \
         --wandb_project "$WANDB_PROJECT" \
         --test
@@ -84,10 +88,12 @@ else
         --lr $LR \
         --batch_size $BATCH_SIZE \
         --epochs $EPOCHS \
+        --weight_decay $WEIGHT_DECAY \
+        --warmup_ratio $WARMUP_RATIO \
         --r $R \
         --alpha $ALPHA \
+        --lora_dropout $LORA_DROPOUT \
         --lambda_vib $LAMBDA_VIB \
-        --lambda_stab $LAMBDA_STAB \
         --lambda_latent_stab $LAMBDA_LATENT_STAB \
         --wandb_project "$WANDB_PROJECT"
 fi

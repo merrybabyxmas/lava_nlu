@@ -1,9 +1,0 @@
-{
-  "task": "eurosat",
-  "seed": 1,
-  "adapter": "lora",
-  "best_accuracy": 0.9885185185185185,
-  "lambda_vib": 1.0,
-  "lambda_stab": 0.1,
-  "lambda_latent_stability": 1.0
-}

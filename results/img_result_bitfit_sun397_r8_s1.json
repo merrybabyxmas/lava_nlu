@@ -1,9 +1,0 @@
-{
-  "task": "sun397",
-  "seed": 1,
-  "adapter": "bitfit",
-  "best_accuracy": 0.7612594458438288,
-  "lambda_vib": 1.0,
-  "lambda_stab": 0.1,
-  "lambda_latent_stability": 1.0
-}

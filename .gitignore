@@ -13,6 +13,7 @@ data/
 *.pth
 .cache/
 results/
+.results/
 
 # --- 추가 권장 항목 ---
 

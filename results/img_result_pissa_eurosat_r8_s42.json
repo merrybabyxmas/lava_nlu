@@ -1,9 +1,0 @@
-{
-  "task": "eurosat",
-  "seed": 42,
-  "adapter": "pissa",
-  "best_accuracy": 0.9879629629629629,
-  "lambda_vib": 1.0,
-  "lambda_stab": 0.1,
-  "lambda_latent_stability": 1.0
-}

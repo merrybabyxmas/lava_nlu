@@ -237,19 +237,24 @@ def main(args):
     run_name = (
         f"{adapter_type}_{task}_"
         f"r{args.r}_a{final_alpha:.1f}_"
-        f"vb{args.lambda_vib}_st{args.lambda_stab}_"
+        f"vb{args.lambda_vib}_"
         f"ls{args.lambda_latent_stability}_"
         f"s{args.seed}"
     )
     
-    wandb.init(
-        project="Deberta-NaturalLanguageUnderstanding",
-        name=run_name,
-        config=vars(args)
-    )
-    wandb.run.summary["trainable_params"] = trainable_params
-    wandb.run.summary["all_params"] = all_params
-    wandb.run.summary["trainable_percentage"] = trainable_percentage
+    # Wandb 초기화 (조건부)
+    if not args.no_wandb:
+        wandb.init(
+            project=args.wandb_project,
+            name=run_name,
+            config=vars(args)
+        )
+        wandb.run.summary["trainable_params"] = trainable_params
+        wandb.run.summary["all_params"] = all_params
+        wandb.run.summary["trainable_percentage"] = trainable_percentage
+    else:
+        # wandb를 비활성화하는 경우 offline 모드로 설정
+        os.environ["WANDB_MODE"] = "offline"
 
     best_callback = BestMetricCallback(main_metric)
 
@@ -268,7 +273,7 @@ def main(args):
         warmup_ratio=args.warmup_ratio,
         lr_scheduler_type=args.lr_scheduler,
         max_grad_norm=args.max_grad_norm,
-        report_to="wandb",
+        report_to="wandb" if not args.no_wandb else "none",
         seed=args.seed,
         logging_steps=10,
         gradient_checkpointing=True,
@@ -285,7 +290,6 @@ def main(args):
             tokenizer=tokenizer,
             callbacks=[best_callback],
             lambda_vib=args.lambda_vib,
-            lambda_stab=args.lambda_stab,
             lambda_latent_stability=args.lambda_latent_stability,
         )
     else:
@@ -306,10 +310,11 @@ def main(args):
             val = log[f"eval_{main_metric}"]
             best_main = val if best_main is None else max(best_main, val)
 
-    if best_main is not None:
+    if best_main is not None and not args.no_wandb:
         wandb.run.summary[f"best_{main_metric}"] = best_main
 
-    wandb.finish()
+    if not args.no_wandb:
+        wandb.finish()
 
     # 결과를 JSON 파일로 저장 (민감도 분석용)
     result_dir = os.path.join(os.path.dirname(__file__), "results")
@@ -317,14 +322,13 @@ def main(args):
 
     result_file = os.path.join(
         result_dir,
-        f"result_{task}_s{args.seed}_vib{args.lambda_vib}_stab{args.lambda_stab}_lat{args.lambda_latent_stability}.json"
+        f"result_{task}_s{args.seed}_vib{args.lambda_vib}_lat{args.lambda_latent_stability}.json"
     )
 
     result_data = {
         "task": task,
         "seed": args.seed,
         "lambda_vib": args.lambda_vib,
-        "lambda_stab": args.lambda_stab,
         "lambda_latent_stability": args.lambda_latent_stability,
         "best_metric": best_main if best_main is not None else 0.0,
         "metric_name": main_metric
@@ -368,11 +372,14 @@ if __name__ == "__main__":
 
     # LAVA Specific Parameters
     parser.add_argument("--lambda_vib", type=float, default=1.0, help="VIB loss weight")
-    parser.add_argument("--lambda_stab", type=float, default=0.1, help="Logit stability weight")
     parser.add_argument("--lambda_latent_stability", type=float, default=1.0, help="Latent stability weight")
     parser.add_argument("--latent_dim", type=int, default=16, help="LAVA latent dimension")
     parser.add_argument("--kl_annealing", action="store_true", help="Enable KL annealing")
     parser.add_argument("--noise_scale", type=float, default=1.0, help="LAVA noise scale")
+    
+    # Wandb Parameters
+    parser.add_argument("--wandb_project", type=str, default="Deberta-NaturalLanguageUnderstanding", help="Wandb project name")
+    parser.add_argument("--no_wandb", action="store_true", help="Disable wandb logging")
 
     args = parser.parse_args()
     setup_seed(args.seed)

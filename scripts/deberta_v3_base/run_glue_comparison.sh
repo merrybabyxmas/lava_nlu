@@ -14,34 +14,35 @@ export PYTHONUNBUFFERED=1
 # ============================================================
 
 # GPU 설정 (병렬 실행)
-GPUS="0"           # 사용할 GPU ID (예: "0,1,2,3")
-PER_GPU_TASKS=3      # GPU당 동시 실행 작업 수 (총 동시 실행: GPU수 x PER_GPU_TASKS)
+GPUS="2,3"           # 사용할 GPU ID (예: "0,1,2,3")
+PER_GPU_TASKS=3      # GPU당 동시 실행 작업 수 (RAM 메모리 절약을 위해 1로 설정)
 
 # 실험 설정
+# SEEDS="1,2,42"
 SEEDS="1,2,42"
+
 TASKS="rte,mrpc,cola,stsb,sst2,qnli,qqp,mnli"
-# TASKS="mrpc,rte"  # 빠른 테스트용
+# TASKS="mrpc"  # 빠른 테스트용
 METHODS="bitfit,lora,adalora,dora,pissa,lava"
+# METHODS="bitfit"
 
 # Training Parameters
-LR=5e-4
+LR=1e-4
 BATCH_SIZE=32
-EPOCHS=30
+EPOCHS=15
 WEIGHT_DECAY=0.01
 WARMUP_RATIO=0.1
 
 # LoRA Parameters
-R=16
-ALPHA=16
+R=8
+ALPHA=8
 LORA_DROPOUT=0.1
 
-# LAVA Lambda Parameters
-LAMBDA_VIB=1.0
-LAMBDA_STAB=0.1
-LAMBDA_LATENT_STAB=1.0
+LAMBDA_VIB=0.0
+LAMBDA_LATENT_STAB=0.0
 
 # Wandb 설정
-WANDB_PROJECT="GLUE-Comparison"
+WANDB_PROJECT="GLUE-all-comparison"
 
 TEST_MODE=false
 
@@ -73,7 +74,6 @@ if [ "$TEST_MODE" = true ]; then
         --alpha $ALPHA \
         --lora_dropout $LORA_DROPOUT \
         --lambda_vib $LAMBDA_VIB \
-        --lambda_stab $LAMBDA_STAB \
         --lambda_latent_stab $LAMBDA_LATENT_STAB \
         --wandb_project "$WANDB_PROJECT" \
         --test
@@ -94,7 +94,6 @@ else
         --alpha $ALPHA \
         --lora_dropout $LORA_DROPOUT \
         --lambda_vib $LAMBDA_VIB \
-        --lambda_stab $LAMBDA_STAB \
         --lambda_latent_stab $LAMBDA_LATENT_STAB \
         --wandb_project "$WANDB_PROJECT"
 fi

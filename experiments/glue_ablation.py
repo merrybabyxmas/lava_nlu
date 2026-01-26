@@ -77,6 +77,7 @@ class GLUEAblationRunner(BaseExperimentRunner):
             "--warmup_ratio", str(tc.warmup_ratio),
             "--r", str(lc.r),
             "--alpha", str(lc.alpha),
+            "--lora_dropout", str(lc.dropout),
             "--lambda_vib", str(vib),
             "--lambda_latent_stability", str(latent_stab),
         ]
@@ -215,13 +216,16 @@ def main():
     parser.add_argument("--wandb_project", type=str, default="GLUE-Ablation")
 
     # Training Config
-    parser.add_argument("--lr", type=float, default=5e-4)
+    parser.add_argument("--lr", type=float, default=1e-4)
     parser.add_argument("--batch_size", type=int, default=32)
-    parser.add_argument("--epochs", type=int, default=30)
+    parser.add_argument("--epochs", type=int, default=15)
+    parser.add_argument("--weight_decay", type=float, default=0.01)
+    parser.add_argument("--warmup_ratio", type=float, default=0.1)
 
     # LoRA Config
-    parser.add_argument("--r", type=int, default=16)
-    parser.add_argument("--alpha", type=int, default=16)
+    parser.add_argument("--r", type=int, default=8)
+    parser.add_argument("--alpha", type=int, default=8)
+    parser.add_argument("--lora_dropout", type=float, default=0.1)
 
     # LAVA Lambda Config (기본값 - ablation에서는 그리드로 override됨)
     parser.add_argument("--lambda_vib", type=float, default=1.0)
@@ -237,9 +241,15 @@ def main():
         learning_rate=args.lr,
         batch_size=args.batch_size,
         epochs=args.epochs,
+        weight_decay=args.weight_decay,
+        warmup_ratio=args.warmup_ratio,
     )
 
-    lora_config = LoRAConfig(r=args.r, alpha=args.alpha)
+    lora_config = LoRAConfig(
+        r=args.r,
+        alpha=args.alpha,
+        dropout=args.lora_dropout,
+    )
 
     runner = GLUEAblationRunner(
         seeds=seeds,
