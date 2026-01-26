@@ -339,9 +339,9 @@ def main(args):
     
     # 데이터셋 로드
     if dataset_config:
-        raw = load_dataset(dataset_name, dataset_config)
+        raw = load_dataset(dataset_name, dataset_config,trust_remote_code=True)
     else:
-        raw = load_dataset(dataset_name)
+        raw = load_dataset(dataset_name,trust_remote_code=True)
     # =========================
     # Remove invalid labels (-1)
     # =========================
