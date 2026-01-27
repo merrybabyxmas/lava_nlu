@@ -231,6 +231,10 @@ def main():
     parser.add_argument("--lambda_vib", type=float, default=1.0)
     parser.add_argument("--lambda_latent_stab", type=float, default=1.0)
 
+    # Data Ratio
+    parser.add_argument("--train_data_ratio", type=int, default=100,
+                        help="Percentage of training data to use (1-100)")
+
     args = parser.parse_args()
 
     seeds = [int(s) for s in args.seeds.split(",")]
@@ -241,6 +245,7 @@ def main():
         learning_rate=args.lr,
         batch_size=args.batch_size,
         epochs=args.epochs,
+        train_data_ratio=args.train_data_ratio,
     )
 
     lora_config = LoRAConfig(r=args.r, alpha=args.alpha)

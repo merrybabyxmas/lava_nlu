@@ -16,17 +16,19 @@ export PYTHONUNBUFFERED=1
 # ============================================================
 
 # GPU 설정 (병렬 실행)
-GPUS="0,2"           # 사용할 GPU ID (예: "0,1,2,3")
-PER_GPU_TASKS=4      # GPU당 동시 실행 작업 수 (RAM 메모리 절약을 위해 1로 설정)
+
+GPUS="0"           # 사용할 GPU ID (예: "0,1,2,3")
+PER_GPU_TASKS=3      # GPU당 동시 실행 작업 수 (RAM 메모리 절약을 위해 1로 설정)
 
 # 실험 설정
 # SEEDS="1,2,42"
-SEEDS="1"
+SEEDS="42"
 
-TASKS="dtd,eurosat,gtsrb,resisc45,sun397,svhn"
-# TASKS="gtsrb"  # 빠른 테스트용
+# TASKS="dtd,eurosat,gtsrb,resisc45,sun397,svhn"
+TASKS="dtd,eurosat,gtsrb,resisc45,sun397"  # 빠른 테스트용
 # METHODS="bitfit,lora,adalora,dora,pissa"
-METHODS="bitfit,adalora,dora,pissa"
+METHODS="lava"
+
 
 
 # Training Parameters
@@ -44,8 +46,11 @@ LORA_DROPOUT=0.1
 LAMBDA_VIB=0.0
 LAMBDA_LATENT_STAB=0.0
 
+# Data Ratio (1-100, percentage of training data to use)
+TRAIN_DATA_RATIO=20
+
 # Wandb 설정
-WANDB_PROJECT="IMG-all-comparison"
+WANDB_PROJECT="IMG-all-comparison-20percentData"
 
 TEST_MODE=false
 
@@ -77,6 +82,7 @@ if [ "$TEST_MODE" = true ]; then
         --r $R \
         --alpha $ALPHA \
         --lora_dropout $LORA_DROPOUT \
+        --train_data_ratio $TRAIN_DATA_RATIO \
         --wandb_project "$WANDB_PROJECT" \
         --test
 else
@@ -97,6 +103,7 @@ else
         --lambda_latent_stab $LAMBDA_LATENT_STAB \
         --alpha $ALPHA \
         --lora_dropout $LORA_DROPOUT \
+        --train_data_ratio $TRAIN_DATA_RATIO \
         --wandb_project "$WANDB_PROJECT"
 fi
 

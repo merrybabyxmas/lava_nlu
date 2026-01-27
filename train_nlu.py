@@ -123,6 +123,16 @@ def main(args):
         columns=["input_ids", "attention_mask", "labels"],
     )
 
+    # Apply train_data_ratio (use first N% for reproducibility)
+    original_train_size = len(encoded["train"])
+    if args.train_data_ratio < 100:
+        subset_size = int(original_train_size * args.train_data_ratio / 100)
+        subset_size = max(1, subset_size)  # At least 1 sample
+        encoded["train"] = encoded["train"].select(range(subset_size))
+        print(f"[*] Using {args.train_data_ratio}% of training data: {subset_size}/{original_train_size} samples")
+
+    total_train_samples = len(encoded["train"])
+
     base = AutoModelForSequenceClassification.from_pretrained(
         args.model,
         num_labels=num_labels,
@@ -252,6 +262,9 @@ def main(args):
         wandb.run.summary["trainable_params"] = trainable_params
         wandb.run.summary["all_params"] = all_params
         wandb.run.summary["trainable_percentage"] = trainable_percentage
+        wandb.run.summary["total_train_samples"] = total_train_samples
+        wandb.run.summary["original_train_size"] = original_train_size
+        wandb.run.summary["train_data_ratio"] = args.train_data_ratio
     else:
         # wandb를 비활성화하는 경우 offline 모드로 설정
         os.environ["WANDB_MODE"] = "offline"
@@ -380,6 +393,10 @@ if __name__ == "__main__":
     # Wandb Parameters
     parser.add_argument("--wandb_project", type=str, default="Deberta-NaturalLanguageUnderstanding", help="Wandb project name")
     parser.add_argument("--no_wandb", action="store_true", help="Disable wandb logging")
+
+    # Data Ratio Parameter
+    parser.add_argument("--train_data_ratio", type=int, default=100,
+                        help="Percentage of training data to use (1-100). Uses first N%% for reproducibility.")
 
     args = parser.parse_args()
     setup_seed(args.seed)

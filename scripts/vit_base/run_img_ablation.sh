@@ -37,6 +37,9 @@ ALPHA=8
 LAMBDA_VIB=0.0
 LAMBDA_LATENT_STAB=1.0
 
+# Data Ratio (1-100, percentage of training data to use)
+TRAIN_DATA_RATIO=100
+
 # Wandb 설정
 WANDB_PROJECT="IMG-newAblation"
 
@@ -68,6 +71,7 @@ if [ "$TEST_MODE" = true ]; then
         --alpha $ALPHA \
         --lambda_vib $LAMBDA_VIB \
         --lambda_latent_stab $LAMBDA_LATENT_STAB \
+        --train_data_ratio $TRAIN_DATA_RATIO \
         --wandb_project "$WANDB_PROJECT" \
         --test
 else
@@ -85,6 +89,7 @@ else
         --alpha $ALPHA \
         --lambda_vib $LAMBDA_VIB \
         --lambda_latent_stab $LAMBDA_LATENT_STAB \
+        --train_data_ratio $TRAIN_DATA_RATIO \
         --wandb_project "$WANDB_PROJECT"
 fi
 

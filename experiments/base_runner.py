@@ -34,6 +34,7 @@ class TrainingConfig:
     warmup_ratio: float = 0.1
     lr_scheduler: str = "linear"
     max_grad_norm: float = 1.0
+    train_data_ratio: int = 100  # 1-100, percentage of training data to use
 
 
 @dataclass
@@ -248,6 +249,7 @@ class BaseExperimentRunner(ABC):
             "--r", str(lc.r),
             "--alpha", str(lc.alpha),
             "--lora_dropout", str(lc.dropout),
+            "--train_data_ratio", str(tc.train_data_ratio),
         ]
 
         # Wandb 설정 전달

@@ -282,6 +282,16 @@ def main(args):
     train_ds.set_format("torch")
     val_ds.set_format("torch")
 
+    # Apply train_data_ratio (use first N% for reproducibility)
+    original_train_size = len(train_ds)
+    if args.train_data_ratio < 100:
+        subset_size = int(original_train_size * args.train_data_ratio / 100)
+        subset_size = max(1, subset_size)  # At least 1 sample
+        train_ds = train_ds.select(range(subset_size))
+        print(f"[*] Using {args.train_data_ratio}% of training data: {subset_size}/{original_train_size} samples")
+
+    total_train_samples = len(train_ds)
+
     # AdaLoRA를 위한 total_step 계산
     total_step = (len(train_ds) // batch) * epochs
 
@@ -368,6 +378,15 @@ def main(args):
 
     wandb_project = getattr(args, 'wandb_project', "ViT-ImageClassification")
     wandb.init(project=wandb_project, name=run_name, config=vars(args), mode=wandb_mode)
+
+    # Log training data info to wandb
+    if wandb_mode != "disabled":
+        wandb.run.summary["total_train_samples"] = total_train_samples
+        wandb.run.summary["original_train_size"] = original_train_size
+        wandb.run.summary["train_data_ratio"] = args.train_data_ratio
+        wandb.run.summary["trainable_params"] = trainable
+        wandb.run.summary["all_params"] = total
+        wandb.run.summary["trainable_percentage"] = 100 * trainable / total
 
     tmp_dir = tempfile.mkdtemp()
 
@@ -506,6 +525,10 @@ if __name__ == "__main__":
     # Wandb Settings
     parser.add_argument("--wandb_project", type=str, default="ViT-ImageClassification", help="Wandb project name")
     parser.add_argument("--no_wandb", action="store_true", help="Disable wandb logging")
+
+    # Data Ratio Parameter
+    parser.add_argument("--train_data_ratio", type=int, default=100,
+                        help="Percentage of training data to use (1-100). Uses first N%% for reproducibility.")
 
     args = parser.parse_args()
     setup_seed(args.seed)

@@ -123,8 +123,12 @@ class LavaBaseTrainer(Trainer):
 
         # VIB Loss (KL) 계산
         if mus:
-            all_mus = torch.cat(mus, dim=0)
-            all_logvars = torch.cat(logvars, dim=0)
+            # Flatten each mu/logvar to 2D [N, rank] before concat
+            # (handles different sequence lengths across layers)
+            flattened_mus = [mu.view(-1, mu.size(-1)) for mu in mus]
+            flattened_logvars = [lv.view(-1, lv.size(-1)) for lv in logvars]
+            all_mus = torch.cat(flattened_mus, dim=0)
+            all_logvars = torch.cat(flattened_logvars, dim=0)
             vib_loss = -0.5 * torch.mean(1 + all_logvars - all_mus.pow(2) - all_logvars.exp())
         else:
             vib_loss = torch.tensor(0.0, device=task_loss.device)

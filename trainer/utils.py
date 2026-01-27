@@ -85,7 +85,9 @@ class BestMetricCallback(TrainerCallback):
                 if is_best:
                     self.best_score = current
                 print(f"[EVAL] Epoch {epoch}: {self.main_metric} = {current:.4f} | Best = {self.best_score:.4f}" + (" *" if is_best else ""))
-                wandb.log({"eval/best_main": self.best_score}, step=state.global_step)
+                # Only log to wandb if it's initialized
+                if wandb.run is not None:
+                    wandb.log({"eval/best_main": self.best_score}, step=state.global_step)
             else:
                 loss = metrics.get("eval_loss", 0)
                 print(f"[EVAL] Epoch {epoch}: Loss = {loss:.4f}")

@@ -41,6 +41,9 @@ LORA_DROPOUT=0.1
 LAMBDA_VIB=0.0
 LAMBDA_LATENT_STAB=0.0
 
+# Data Ratio (1-100, percentage of training data to use)
+TRAIN_DATA_RATIO=100
+
 # Wandb 설정
 WANDB_PROJECT="GLUE-ablation"
 
@@ -75,6 +78,7 @@ if [ "$TEST_MODE" = true ]; then
         --lora_dropout $LORA_DROPOUT \
         --lambda_vib $LAMBDA_VIB \
         --lambda_latent_stab $LAMBDA_LATENT_STAB \
+        --train_data_ratio $TRAIN_DATA_RATIO \
         --wandb_project "$WANDB_PROJECT" \
         --test
 else
@@ -95,6 +99,7 @@ else
         --lora_dropout $LORA_DROPOUT \
         --lambda_vib $LAMBDA_VIB \
         --lambda_latent_stab $LAMBDA_LATENT_STAB \
+        --train_data_ratio $TRAIN_DATA_RATIO \
         --wandb_project "$WANDB_PROJECT"
 fi
 
