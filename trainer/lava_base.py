@@ -1,10 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import random
-import numpy as np
-import math
-from torch.utils.data import DataLoader
 from transformers import Trainer
 from typing import Dict, List, Optional
 
@@ -16,16 +12,18 @@ class LavaBaseTrainer(Trainer):
     - Fixed Hyperparameters: lambda_vib, lambda_latent_stability
     - Single-pass (N batch) training
     - Cached LAVA layers & Vectorized loss computation
-    - Logit Stability Removed
+    - Uses standard Trainer's DataLoader for fair comparison (same shuffling as other adapters)
     """
 
-    def __init__(self, *args, lambda_vib=1.0, lambda_latent_stability=1.0, dataloader_seed=42, **kwargs):
+    def __init__(self, *args, lambda_vib=1.0, lambda_latent_stability=1.0, **kwargs):
+        # NOTE: dataloader_seed parameter removed - now uses TrainingArguments.seed
+        # This ensures identical data ordering between LavaTrainer and standard Trainer
+        kwargs.pop('dataloader_seed', None)  # Remove if passed for backward compatibility
         super().__init__(*args, **kwargs)
 
         # [1] 하이퍼파라미터 설정 (고정값)
         self.lambda_vib = lambda_vib
         self.lambda_latent_stability = lambda_latent_stability
-        self.dataloader_seed = dataloader_seed
 
         # loss 추적용 딕셔너리 초기화
         self.loss_track = {}
@@ -45,48 +43,9 @@ class LavaBaseTrainer(Trainer):
         if len(self.lava_layers) == 0:
             self._cache_lava_layers()
 
-    def _get_worker_init_fn(self):
-        base_seed = self.dataloader_seed
-        def worker_init_fn(worker_id):
-            worker_seed = (base_seed + worker_id) % 2**32
-            np.random.seed(worker_seed)
-            random.seed(worker_seed)
-            torch.manual_seed(worker_seed)
-        return worker_init_fn
-
-    def get_train_dataloader(self) -> DataLoader:
-        if self.train_dataset is None:
-            raise ValueError("Trainer: training requires a train_dataset.")
-        g = torch.Generator()
-        g.manual_seed(self.dataloader_seed)
-        return DataLoader(
-            self.train_dataset,
-            batch_size=self._train_batch_size,
-            collate_fn=self.data_collator,
-            num_workers=self.args.dataloader_num_workers,
-            pin_memory=self.args.dataloader_pin_memory,
-            shuffle=True,
-            drop_last=self.args.dataloader_drop_last,
-            worker_init_fn=self._get_worker_init_fn(),
-            generator=g,
-        )
-
-    def get_eval_dataloader(self, eval_dataset=None) -> DataLoader:
-        eval_dataset = eval_dataset if eval_dataset is not None else self.eval_dataset
-        if eval_dataset is None:
-            raise ValueError("Trainer: evaluation requires an eval_dataset.")
-        g = torch.Generator()
-        g.manual_seed(self.dataloader_seed)
-        return DataLoader(
-            eval_dataset,
-            batch_size=self.args.eval_batch_size,
-            collate_fn=self.data_collator,
-            num_workers=self.args.dataloader_num_workers,
-            pin_memory=self.args.dataloader_pin_memory,
-            shuffle=False,
-            worker_init_fn=self._get_worker_init_fn(),
-            generator=g,
-        )
+    # NOTE: Removed custom get_train_dataloader() and get_eval_dataloader()
+    # Now uses standard Trainer's DataLoader implementation for fair comparison
+    # The seed from TrainingArguments is used for reproducible shuffling
 
     def _get_task_specific_inputs(self, inputs):
         return inputs

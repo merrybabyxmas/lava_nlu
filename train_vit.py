@@ -469,7 +469,6 @@ def main(args):
             callbacks=[callback],
             lambda_vib=args.lambda_vib,
             lambda_latent_stability=args.lambda_latent_stability,
-            dataloader_seed=args.seed,
         )
     else:
         trainer = Trainer(
