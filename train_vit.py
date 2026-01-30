@@ -169,14 +169,20 @@ def load_torchvision_dataset(task: str, meta: dict, data_root: str = "./data", s
     return {"train": train_hf, "test": val_hf}
 
 
-def build_adapter(adapter_type, r=8, alpha=8, total_step=None):
+def build_adapter(adapter_type, r=8, alpha=8, total_step=None, lora_dropout=0.0):
     at = adapter_type.lower()
     target_modules = ["query", "key", "value", "dense"]
 
     # NOTE: task_type="SEQ_CLS" ensures classifier head is trainable via modules_to_save
     # This is critical for fair comparison - all adapters should train the classifier
     if at in ["lora", "dora", "pissa"]:
-        kwargs = dict(r=r, lora_alpha=alpha, target_modules=target_modules, task_type="SEQ_CLS")
+        kwargs = dict(
+            r=r,
+            lora_alpha=alpha,
+            target_modules=target_modules,
+            task_type="SEQ_CLS",
+            lora_dropout=lora_dropout,
+        )
         if at == "pissa":
             kwargs["init_lora_weights"] = "pissa"
         if at == "dora":
@@ -192,6 +198,7 @@ def build_adapter(adapter_type, r=8, alpha=8, total_step=None):
             target_modules=target_modules,
             total_step=total_step if total_step else 1000,
             task_type="SEQ_CLS",  # Ensure classifier is trainable
+            lora_dropout=lora_dropout,
         )
 
     if at == "lava":
@@ -312,7 +319,7 @@ def main(args):
                 param.requires_grad = False
     elif adapter_type.lower() == "pissa":
         # PiSSA precompute 로직: SVD 계산 결과를 캐시하여 재사용
-        peft_cfg = build_adapter(adapter_type, r=args.r, alpha=args.alpha, total_step=total_step)
+        peft_cfg = build_adapter(adapter_type, r=args.r, alpha=args.alpha, total_step=total_step, lora_dropout=args.lora_dropout)
 
         cache_dir = ".precomputed"
         os.makedirs(cache_dir, exist_ok=True)
@@ -351,7 +358,7 @@ def main(args):
             torch.save(to_save, cache_path)
             print(f"[*] PiSSA SVD computation finished and saved to {cache_path}")
     else:
-        peft_cfg = build_adapter(adapter_type, r=args.r, alpha=args.alpha, total_step=total_step)
+        peft_cfg = build_adapter(adapter_type, r=args.r, alpha=args.alpha, total_step=total_step, lora_dropout=args.lora_dropout)
         model = get_peft_model(base, peft_cfg)
 
     trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -445,7 +452,14 @@ def main(args):
 
     callback = BestMetricCallback("accuracy")
 
-    if adapter_type in ["lava", "lava_fullweight"]:
+    # Use LavaTrainer only when LAVA losses are active (lambda > 0)
+    # When lambda_vib=0 and lambda_latent_stability=0, use standard Trainer for fair comparison
+    use_lava_trainer = (
+        adapter_type in ["lava", "lava_fullweight"] and
+        (args.lambda_vib > 0 or args.lambda_latent_stability > 0)
+    )
+
+    if use_lava_trainer:
         trainer = LavaViTTrainer(
             model=model,
             args=training_args,

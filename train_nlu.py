@@ -45,7 +45,7 @@ register_lava()
 # ==========================================================
 # Adapter builder (MODIFIED: Added AdaLoRA, BitFit)
 # ==========================================================
-def build_adapter(adapter_type, r, alpha, model=None, total_step=None):
+def build_adapter(adapter_type, r, alpha, model=None, total_step=None, lora_dropout=0.0):
     at = adapter_type.lower()
 
     # 1. LoRA 계열 (LoRA, DoRA, PiSSA)
@@ -55,6 +55,7 @@ def build_adapter(adapter_type, r, alpha, model=None, total_step=None):
             lora_alpha=alpha,
             target_modules=["query_proj", "key_proj", "value_proj", "dense"],
             task_type="SEQ_CLS",
+            lora_dropout=lora_dropout,
         )
         if at == "pissa":
             kwargs["init_lora_weights"] = "pissa"
@@ -71,6 +72,7 @@ def build_adapter(adapter_type, r, alpha, model=None, total_step=None):
             target_modules=["query_proj", "key_proj", "value_proj", "dense"],
             task_type="SEQ_CLS",
             total_step=total_step if total_step else 1000,
+            lora_dropout=lora_dropout,
         )
 
     # 3. LAVA
@@ -175,7 +177,7 @@ def main(args):
     total_step = (total_train_samples // batch) * epochs
 
     # Adapter 적용
-    peft_cfg = build_adapter(adapter_type, r=args.r, alpha=final_alpha, total_step=total_step)
+    peft_cfg = build_adapter(adapter_type, r=args.r, alpha=final_alpha, total_step=total_step, lora_dropout=args.lora_dropout)
     
     
     
@@ -320,7 +322,14 @@ def main(args):
         gradient_checkpointing_kwargs={"use_reentrant": False}
     )
 
-    if at in ["lava", "lava_init"]:
+    # Use LavaTrainer only when LAVA losses are active (lambda > 0)
+    # When lambda_vib=0 and lambda_latent_stability=0, use standard Trainer for fair comparison
+    use_lava_trainer = (
+        at in ["lava", "lava_init"] and
+        (args.lambda_vib > 0 or args.lambda_latent_stability > 0)
+    )
+
+    if use_lava_trainer:
         trainer = LavaNLUTrainer(
             model=model,
             args=args_out,
