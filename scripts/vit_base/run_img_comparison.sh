@@ -18,7 +18,7 @@ export PYTHONUNBUFFERED=1
 # GPU 설정 (병렬 실행)
 
 GPUS="0"           # 사용할 GPU ID (예: "0,1,2,3")
-PER_GPU_TASKS=10     # GPU당 동시 실행 작업 수 (RAM 메모리 절약을 위해 1로 설정)
+PER_GPU_TASKS=1     # GPU당 동시 실행 작업 수 (RAM 메모리 절약을 위해 1로 설정)
 
 # 실험 설정
 # SEEDS="1,2,42"
@@ -26,7 +26,7 @@ SEEDS="33,67,16"
 
 # TASKS="dtd,eurosat,gtsrb,resisc45,sun397,svhn"
 TASKS="dtd,eurosat,gtsrb,resisc45,sun397,svhn"  # 빠른 테스트용
-METHODS="lava,bitfit,lora,dora,pissa"
+METHODS="lora"
 # METHODS="lava"
 
 
